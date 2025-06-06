@@ -2,8 +2,8 @@ package repositories
 
 import (
 	"database/sql"
-	"errors"
 	"passenger-go/backend/models"
+	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities"
 )
 
@@ -15,10 +15,10 @@ func NewAuthRepository() *AuthRepository {
 	return &AuthRepository{database: utilities.GetDB()}
 }
 
-func (repository *AuthRepository) GetUserCount() (int, error) {
+func (repository *AuthRepository) GetUserCount() (int, *schemas.APIError) {
 	rows, err := repository.database.Query(QueryGetUserCount)
 	if err != nil {
-		return 0, err
+		return 0, schemas.NewAPIError(schemas.ErrDatabase, "failed to get user count", err)
 	}
 
 	defer rows.Close()
@@ -27,7 +27,7 @@ func (repository *AuthRepository) GetUserCount() (int, error) {
 	for rows.Next() {
 		err := rows.Scan(&count)
 		if err != nil {
-			return 0, err
+			return 0, schemas.NewAPIError(schemas.ErrDatabase, "failed to get user count", err)
 		}
 	}
 
@@ -40,16 +40,19 @@ func (repository *AuthRepository) GetUser() (*models.User, error) {
 	var user models.User
 	err := row.Scan(&user.Id, &user.Passphrase, &user.Validated, &user.Recovery)
 	if err != nil {
-		return nil, err
+		return nil, schemas.NewAPIError(schemas.ErrDatabase, "failed to get user", err)
 	}
 
 	return &user, nil
 }
 
-func (repository *AuthRepository) CreateUser(passphrase string, recoveryKey string) error {
+func (repository *AuthRepository) CreateUser(
+	passphrase string,
+	recoveryKey string,
+) error {
 	_, err := repository.database.Exec(QueryCreateUser, passphrase, recoveryKey)
 	if err != nil {
-		return err
+		return schemas.NewAPIError(schemas.ErrDatabase, "failed to create user", err)
 	}
 
 	return nil
@@ -58,32 +61,34 @@ func (repository *AuthRepository) CreateUser(passphrase string, recoveryKey stri
 func (repository *AuthRepository) ValidateUser() error {
 	rows, err := repository.database.Query(QueryValidateUser)
 	if err != nil {
-		return err
+		return schemas.NewAPIError(schemas.ErrDatabase, "failed to validate user", err)
 	}
 
 	var validated bool
 	for rows.Next() {
 		err := rows.Scan(&validated)
 		if err != nil {
-			return err
+			return schemas.NewAPIError(schemas.ErrDatabase, "failed to validate user", err)
 		}
 	}
 
 	if validated {
-		return errors.New("ALREADY_VALIDATED")
+		return schemas.NewAPIError(schemas.ErrAlreadyInitialized, "user already validated", nil)
 	}
 
 	_, err = repository.database.Exec(QueryValidateUser)
 	if err != nil {
-		return errors.New("failed to validate user")
+		return schemas.NewAPIError(schemas.ErrDatabase, "failed to validate user", err)
 	}
 	return nil
 }
 
-func (repository *AuthRepository) UpdateUser(passphrase string) error {
+func (repository *AuthRepository) UpdateUser(
+	passphrase string,
+) error {
 	_, err := repository.database.Exec(QueryUpdatePassphrase, passphrase)
 	if err != nil {
-		return err
+		return schemas.NewAPIError(schemas.ErrDatabase, "failed to update user", err)
 	}
 
 	return nil

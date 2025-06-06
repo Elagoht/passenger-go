@@ -22,6 +22,7 @@ import (
 	"errors"
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/repositories"
+	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities"
 
 	"github.com/go-playground/validator/v10"
@@ -56,7 +57,7 @@ func (service *AuthService) RegisterUser(passphrase string) (string, error) {
 	}
 
 	if initialized {
-		return "", errors.New("ALREADY_INITIALIZED")
+		return "", schemas.NewAPIError(schemas.ErrAlreadyInitialized, "ALREADY_INITIALIZED", nil)
 	}
 
 	encryptedPassphrase, err := utilities.Encrypt(passphrase)

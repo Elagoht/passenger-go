@@ -1,19 +1,18 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 
 	"passenger-go/backend"
 	"passenger-go/backend/middlewares"
+	"passenger-go/backend/utilities"
 
 	"github.com/go-chi/chi"
 )
 
 func main() {
-	// Initialize logger
-	logger := log.New(os.Stdout, "[Passenger] ", log.LstdFlags|log.Lshortfile)
+	logger := utilities.Logger
 
 	router := chi.NewRouter()
 
