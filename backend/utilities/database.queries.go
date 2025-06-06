@@ -15,12 +15,14 @@ const (
 		platform TEXT NOT NULL,
 		identifier TEXT NOT NULL,
 		passphrase TEXT NOT NULL,
-		icon INT NOT NULL, -- This is an index of the icon set
 		notes TEXT DEFAULT NULL,
+		favorite BOOLEAN DEFAULT FALSE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		deleted_at DATETIME DEFAULT NULL, -- using soft delete
-		favorite BOOLEAN DEFAULT FALSE
+		access_count INTEGER DEFAULT 0,
+		strength INTEGER DEFAULT 0,
+		last_accessed DATETIME DEFAULT NULL,
 	)
 	`
 	QuerySeedUser = `
