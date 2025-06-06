@@ -1,9 +1,9 @@
 package utilities
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
+	"passenger-go/backend/errors"
 	"passenger-go/backend/schemas"
 
 	"github.com/joho/godotenv"
@@ -14,25 +14,29 @@ var isDev = false
 func init() {
 	godotenv.Load()
 
-	isDev = os.Getenv("ENV") == "development"
+	isDev = os.Getenv("MODE") == "development"
 }
 
 func HandleAPIError(writer http.ResponseWriter, err error) {
+	apiError, ok := err.(*schemas.APIError)
+
 	if err != nil {
 		if isDev {
-			apiError, ok := err.(*schemas.APIError)
 			if ok {
 				Logger.Printf("API Error Code: %v", apiError.Code)
 				Logger.Printf("API Error Message: %v", apiError.Message)
-				Logger.Printf("API Error Stack: %v", apiError.Stack.Error())
+				if apiError.Stack != nil {
+					Logger.Printf("API Error Stack: %v", apiError.Stack.Error())
+				}
 			} else {
 				Logger.Printf("API Error: %v", err)
 			}
 		}
 
-		json.NewEncoder(writer).Encode(schemas.APIError{
-			Code:    "INTERNAL_SERVER_ERROR",
-			Message: err.Error(),
-		})
+		if ok {
+			errors.WriteHTTPError(writer, apiError)
+		} else {
+			errors.WriteHTTPError(writer, schemas.NewAPIError(schemas.ErrUnexpected, err.Error(), err))
+		}
 	}
 }

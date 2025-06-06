@@ -20,12 +20,12 @@ func NewAPIError(code APIErrorCode, message string, stack error) *APIError {
 type APIErrorCode string
 
 const (
-	ErrDatabase                 APIErrorCode = "DATABASE_ERROR"
+	ErrDatabase                 APIErrorCode = "DATABASE_FAULT"
 	ErrAlreadyInitialized       APIErrorCode = "ALREADY_INITIALIZED"
 	ErrNotInitializedYet        APIErrorCode = "NOT_INITIALIZED_YET"
 	ErrEncryptionFailed         APIErrorCode = "ENCRYPTION_FAILED"
 	ErrRecoveryGenerationFailed APIErrorCode = "RECOVERY_KEY_GENERATION_FAILED"
 	ErrInvalidCredentials       APIErrorCode = "INVALID_CREDENTIALS"
 	ErrJWTGenerationFailed      APIErrorCode = "JWT_GENERATION_FAILED"
-	ErrUserNotFound             APIErrorCode = "USER_NOT_FOUND"
+	ErrUnexpected               APIErrorCode = "UNEXPECTED"
 )
