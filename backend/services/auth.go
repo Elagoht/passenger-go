@@ -19,7 +19,6 @@
 package services
 
 import (
-	"errors"
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
@@ -57,18 +56,30 @@ func (service *AuthService) RegisterUser(passphrase string) (string, error) {
 	}
 
 	if initialized {
-		return "", schemas.NewAPIError(schemas.ErrAlreadyInitialized, "ALREADY_INITIALIZED", nil)
+		return "", schemas.NewAPIError(
+			schemas.ErrAlreadyInitialized,
+			"You have already initialized the application",
+			nil,
+		)
 	}
 
 	encryptedPassphrase, err := utilities.Encrypt(passphrase)
 	if err != nil {
-		return "", errors.New("ENCRYPTION_FAILED")
+		return "", schemas.NewAPIError(
+			schemas.ErrEncryptionFailed,
+			"Couldn't encrypt passphrase",
+			err,
+		)
 	}
 
 	recoveryKey, err := utilities.GenerateRecoveryKey(passphrase)
 
 	if err != nil {
-		return "", errors.New("RECOVERY_KEY_GENERATION_FAILED")
+		return "", schemas.NewAPIError(
+			schemas.ErrRecoveryGenerationFailed,
+			"Failed to generate recovery key",
+			err,
+		)
 	}
 
 	// Create a temporary user
@@ -83,15 +94,27 @@ func (service *AuthService) RegisterUser(passphrase string) (string, error) {
 func (service *AuthService) CompleteRegistration(recovery string) error {
 	user, err := service.repository.GetUser()
 	if err != nil {
-		return errors.New("USER_NOT_FOUND")
+		return schemas.NewAPIError(
+			schemas.ErrNotInitializedYet,
+			"You haven't initialized the application yet",
+			err,
+		)
 	}
 
 	if user.Validated {
-		return errors.New("ALREADY_VALIDATED")
+		return schemas.NewAPIError(
+			schemas.ErrAlreadyInitialized,
+			"You have already completed the registration",
+			nil,
+		)
 	}
 
 	if user.Recovery != recovery {
-		return errors.New("INVALID_RECOVERY_KEY")
+		return schemas.NewAPIError(
+			schemas.ErrInvalidCredentials,
+			"Invalid recovery key",
+			nil,
+		)
 	}
 
 	return service.repository.ValidateUser()
@@ -101,21 +124,37 @@ func (service *AuthService) CompleteRegistration(recovery string) error {
 func (service *AuthService) LoginUser(passphrase string) (string, error) {
 	user, err := service.repository.GetUser()
 	if err != nil {
-		return "", errors.New("USER_NOT_FOUND")
+		return "", schemas.NewAPIError(
+			schemas.ErrNotInitializedYet,
+			"You haven't initialized the application yet",
+			err,
+		)
 	}
 
 	encryptedPassphrase, err := utilities.Encrypt(passphrase)
 	if err != nil {
-		return "", errors.New("ENCRYPTION_FAILED")
+		return "", schemas.NewAPIError(
+			schemas.ErrEncryptionFailed,
+			"Couldn't encrypt passphrase",
+			err,
+		)
 	}
 
 	if user.Passphrase != encryptedPassphrase {
-		return "", errors.New("INVALID_CREDENTIALS")
+		return "", schemas.NewAPIError(
+			schemas.ErrInvalidCredentials,
+			"Invalid credentials",
+			nil,
+		)
 	}
 
 	token, err := utilities.GenerateJWT(user.Id)
 	if err != nil {
-		return "", errors.New("JWT_GENERATION_FAILED")
+		return "", schemas.NewAPIError(
+			schemas.ErrJWTGenerationFailed,
+			"Failed to generate JWT",
+			err,
+		)
 	}
 
 	return token, nil
@@ -129,12 +168,20 @@ func (service *AuthService) UpdatePassphrase(newPassphrase string) error {
 	}
 
 	if !initialized {
-		return errors.New("NOT_INITIALIZED")
+		return schemas.NewAPIError(
+			schemas.ErrNotInitializedYet,
+			"You haven't initialized the application yet",
+			nil,
+		)
 	}
 
 	encryptedNewPassphrase, err := utilities.Encrypt(newPassphrase)
 	if err != nil {
-		return errors.New("ENCRYPTION_FAILED")
+		return schemas.NewAPIError(
+			schemas.ErrEncryptionFailed,
+			"Couldn't encrypt passphrase",
+			err,
+		)
 	}
 
 	return service.repository.UpdateUser(encryptedNewPassphrase)

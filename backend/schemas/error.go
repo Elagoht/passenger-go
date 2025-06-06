@@ -6,11 +6,11 @@ type APIError struct {
 	Stack   error  `json:"-"`
 }
 
-func (e *APIError) Error() string {
-	if e.Message != "" {
-		return e.Message
+func (error *APIError) Error() string {
+	if error.Message != "" {
+		return error.Message
 	}
-	return e.Code
+	return error.Code
 }
 
 func NewAPIError(code APIErrorCode, message string, stack error) *APIError {
@@ -20,6 +20,12 @@ func NewAPIError(code APIErrorCode, message string, stack error) *APIError {
 type APIErrorCode string
 
 const (
-	ErrDatabase           APIErrorCode = "DATABASE_ERROR"
-	ErrAlreadyInitialized APIErrorCode = "ALREADY_INITIALIZED"
+	ErrDatabase                 APIErrorCode = "DATABASE_ERROR"
+	ErrAlreadyInitialized       APIErrorCode = "ALREADY_INITIALIZED"
+	ErrNotInitializedYet        APIErrorCode = "NOT_INITIALIZED_YET"
+	ErrEncryptionFailed         APIErrorCode = "ENCRYPTION_FAILED"
+	ErrRecoveryGenerationFailed APIErrorCode = "RECOVERY_KEY_GENERATION_FAILED"
+	ErrInvalidCredentials       APIErrorCode = "INVALID_CREDENTIALS"
+	ErrJWTGenerationFailed      APIErrorCode = "JWT_GENERATION_FAILED"
+	ErrUserNotFound             APIErrorCode = "USER_NOT_FOUND"
 )
