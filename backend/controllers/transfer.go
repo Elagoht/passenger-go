@@ -1,7 +1,9 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
+	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
 	"passenger-go/backend/utilities"
 	"passenger-go/backend/utilities/importer"
@@ -46,12 +48,39 @@ func (controller *TransferController) Import(
 	}
 	defer csvFile.Close()
 
-	platform, err := importer.DeterminePlatform(csvFile)
+	// First read to detect platform
+	platform := importer.GetPlatform(csvFile)
+	if platform.Fields == nil {
+		return schemas.NewAPIError(
+			schemas.ErrInvalidPlatform,
+			"The uploaded file format is not supported. Please use Firefox or Chromium export format.",
+			nil,
+		)
+	}
+
+	// Reset file pointer for parsing
+	if _, err := csvFile.Seek(0, 0); err != nil {
+		return schemas.NewAPIError(
+			schemas.ErrUnexpected,
+			"Failed to process the file",
+			err,
+		)
+	}
+
+	accounts, err := platform.Parse(csvFile)
 	if err != nil {
 		return err
 	}
-	writer.Write([]byte(platform))
 
+	if len(accounts) == 0 {
+		return schemas.NewAPIError(
+			schemas.ErrUnprocessableEntity,
+			"No accounts found in the CSV file",
+			nil,
+		)
+	}
+
+	json.NewEncoder(writer).Encode(accounts)
 	return nil
 }
 

@@ -4,12 +4,17 @@ import (
 	"encoding/csv"
 	"io"
 	"passenger-go/backend/schemas"
+	"passenger-go/backend/utilities"
 )
+
+type fieldTransformer func(string) string
 
 type Platform struct {
 	Fields          []string
-	DelimiterType   string
+	DelimiterType   string // "CRLF" or "LF" for line endings
 	DelimiterQuotes string
+	MatchFields     map[string]string
+	TransformFields map[string]fieldTransformer
 }
 
 type PlatformType string
@@ -20,6 +25,8 @@ const (
 )
 
 var (
+	PassengerFieldNames = []string{"platform", "identifier", "passphrase", "note", "favorite"}
+
 	PlatformTypes = []PlatformType{PlatformFirefox, PlatformChromium}
 
 	platforms = map[PlatformType]Platform{
@@ -27,17 +34,32 @@ var (
 			Fields:          []string{"url", "username", "password", "httpRealm", "formActionOrigin", "guid", "timeCreated", "timeLastUsed", "timePasswordChanged"},
 			DelimiterType:   "CRLF",
 			DelimiterQuotes: "\"",
+			MatchFields: map[string]string{
+				"platform":   "url",
+				"identifier": "username",
+				"passphrase": "password",
+			},
+			TransformFields: map[string]fieldTransformer{
+				"platform": utilities.ConvertURLToPlatformName,
+			},
 		},
 		PlatformChromium: {
 			Fields:          []string{"name", "url", "username", "password", "note"},
 			DelimiterType:   "LF",
 			DelimiterQuotes: "",
+			MatchFields: map[string]string{
+				"platform":   "name",
+				"identifier": "username",
+				"passphrase": "password",
+			},
+			TransformFields: map[string]fieldTransformer{},
 		},
 	}
 )
 
-func DeterminePlatform(file io.Reader) (PlatformType, error) {
+func determinePlatform(file io.Reader) (PlatformType, error) {
 	csvReader := csv.NewReader(file)
+	csvReader.TrimLeadingSpace = true
 
 	// Read the header row
 	fields, err := csvReader.Read()
@@ -76,4 +98,103 @@ func DeterminePlatform(file io.Reader) (PlatformType, error) {
 		"File does not match any of the supported platforms",
 		nil,
 	)
+}
+
+func GetPlatform(file io.Reader) Platform {
+	platformType, err := determinePlatform(file)
+	if err != nil {
+		return Platform{}
+	}
+
+	return platforms[platformType]
+}
+
+func (p Platform) Parse(
+	file io.Reader,
+) ([]schemas.RequestAccountsCreate, error) {
+	csvReader := csv.NewReader(file)
+	csvReader.Comma = ',' // Always use comma as delimiter
+	csvReader.LazyQuotes = p.DelimiterQuotes == ""
+	csvReader.TrimLeadingSpace = true
+
+	// Skip header row
+	_, err := csvReader.Read()
+	if err != nil {
+		return nil, schemas.NewAPIError(
+			schemas.ErrInvalidPlatform,
+			"Failed to read CSV header",
+			err,
+		)
+	}
+
+	results := []schemas.RequestAccountsCreate{}
+
+	// Find field indices
+	urlIndex := findFieldIndex(p.Fields, p.MatchFields["platform"])
+	usernameIndex := findFieldIndex(p.Fields, p.MatchFields["identifier"])
+	passwordIndex := findFieldIndex(p.Fields, p.MatchFields["passphrase"])
+
+	if urlIndex == -1 || usernameIndex == -1 || passwordIndex == -1 {
+		return nil, schemas.NewAPIError(
+			schemas.ErrInvalidPlatform,
+			"Required fields not found in CSV",
+			nil,
+		)
+	}
+
+	for {
+		record, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, schemas.NewAPIError(
+				schemas.ErrUnprocessableEntity,
+				"Failed to read CSV record",
+				err,
+			)
+		}
+
+		if len(record) < len(p.Fields) {
+			continue // Skip malformed rows
+		}
+
+		platform := record[urlIndex]
+		if transformer, ok := p.TransformFields["platform"]; ok {
+			platform = transformer(platform)
+		}
+
+		account := schemas.RequestAccountsCreate{
+			Platform:   platform,
+			Identifier: record[usernameIndex],
+			Passphrase: record[passwordIndex],
+		}
+
+		results = append(results, account)
+	}
+
+	return results, nil
+}
+
+func calculateFields(
+	fieldTransformer any,
+	field string,
+) string {
+	function, ok := fieldTransformer.(func(string) string)
+
+	if !ok {
+		return field
+	}
+
+	return function(field)
+}
+
+func findFieldIndex(fields []string, field string) int {
+	for i, f := range fields {
+		if f == field {
+			return i
+		}
+	}
+
+	return -1
 }
