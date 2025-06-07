@@ -21,6 +21,8 @@ type TransferController struct {
 func NewTransferController() *TransferController {
 	return &TransferController{
 		transferRouter: utilities.NewRouter(chi.NewRouter()),
+		validator:      validator.New(),
+		service:        services.NewTransferService(),
 	}
 }
 
@@ -42,6 +44,12 @@ func (controller *TransferController) Import(
 	writer http.ResponseWriter,
 	request *http.Request,
 ) error {
+	file, _, err := request.FormFile("file")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
 	csvFile, _, err := request.FormFile("file")
 	if err != nil {
 		return err
@@ -80,7 +88,13 @@ func (controller *TransferController) Import(
 		)
 	}
 
-	json.NewEncoder(writer).Encode(accounts)
+	importResult, err := controller.service.Import(accounts)
+	if err != nil {
+		return err
+	}
+
+	json.NewEncoder(writer).Encode(importResult)
+
 	return nil
 }
 

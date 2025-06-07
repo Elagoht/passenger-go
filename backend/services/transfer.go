@@ -15,13 +15,13 @@ func NewTransferService() *TransferService {
 }
 
 type ImportResult struct {
-	SuccessCount int
-	FailedOnes   []schemas.RequestAccountsCreate
+	SuccessCount int                             `json:"successCount"`
+	FailedOnes   []schemas.RequestAccountsCreate `json:"failedOnes"`
 }
 
 func (service *TransferService) Import(
 	accounts []schemas.RequestAccountsCreate,
-) (*ImportResult, *schemas.APIError) {
+) (*ImportResult, error) {
 	successCount := 0
 	failedOnes := []schemas.RequestAccountsCreate{}
 
