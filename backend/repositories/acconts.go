@@ -3,7 +3,6 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
-	"passenger-go/backend/models"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities"
 	"strings"
@@ -18,7 +17,7 @@ func NewAccountsRepository() *AccountsRepository {
 }
 
 func (repository *AccountsRepository) CreateAccount(
-	account *models.Account,
+	account *schemas.RequestAccountsCreate,
 ) (string, error) {
 	statement, err := repository.database.Prepare(QueryAccountCreate)
 	if err != nil {
@@ -35,6 +34,7 @@ func (repository *AccountsRepository) CreateAccount(
 		account.Platform,
 		account.Identifier,
 		account.Passphrase,
+		account.Url,
 		account.Notes,
 		account.Favorite,
 	)
@@ -46,6 +46,7 @@ func (repository *AccountsRepository) CreateAccount(
 				err,
 			)
 		}
+
 		return "", schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to create account",
@@ -98,6 +99,7 @@ func (repository *AccountsRepository) GetAccountCards(
 			&account.Id,
 			&account.Platform,
 			&account.Identifier,
+			&account.Url,
 			&account.Favorite,
 		)
 		if err != nil {
@@ -123,6 +125,7 @@ func (repository *AccountsRepository) GetAccountDetails(
 		&account.Id,
 		&account.Platform,
 		&account.Identifier,
+		&account.Url,
 		&account.Notes,
 		&account.Favorite,
 		&account.CreatedAt,
@@ -150,7 +153,7 @@ func (repository *AccountsRepository) GetAccountDetails(
 }
 
 func (repository *AccountsRepository) UpdateAccount(
-	account *models.Account,
+	account *schemas.RequestAccountsCreate,
 ) error {
 	statement, err := repository.database.Prepare(QueryAccountUpdate)
 	if err != nil {
@@ -167,9 +170,9 @@ func (repository *AccountsRepository) UpdateAccount(
 		account.Platform,
 		account.Identifier,
 		account.Passphrase,
+		account.Url,
 		account.Notes,
 		account.Favorite,
-		account.Id,
 	)
 	if err != nil {
 		return schemas.NewAPIError(
@@ -205,32 +208,6 @@ func (repository *AccountsRepository) DeleteAccount(
 	}
 
 	return nil
-}
-
-func (repository *AccountsRepository) UpdateAccountStrength(
-	id string,
-	strength int,
-) (int, error) {
-	statement, err := repository.database.Prepare(QueryAccountUpdateStrength)
-	if err != nil {
-		return 0, schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to prepare account update strength statement",
-			err,
-		)
-	}
-	defer statement.Close()
-
-	_, err = statement.Exec(strength, id)
-	if err != nil {
-		return 0, schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to update account strength",
-			err,
-		)
-	}
-
-	return strength, nil
 }
 
 func (repository *AccountsRepository) UpdateAccountAccessed(

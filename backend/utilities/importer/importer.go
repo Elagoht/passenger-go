@@ -38,6 +38,7 @@ var (
 				"platform":   "url",
 				"identifier": "username",
 				"passphrase": "password",
+				"url":        "url",
 			},
 			TransformFields: map[string]fieldTransformer{
 				"platform": utilities.ConvertURLToPlatformName,
@@ -51,6 +52,7 @@ var (
 				"platform":   "name",
 				"identifier": "username",
 				"passphrase": "password",
+				"url":        "url",
 			},
 			TransformFields: map[string]fieldTransformer{},
 		},
@@ -130,11 +132,12 @@ func (p Platform) Parse(
 	results := []schemas.RequestAccountsCreate{}
 
 	// Find field indices
-	urlIndex := findFieldIndex(p.Fields, p.MatchFields["platform"])
+	platformIndex := findFieldIndex(p.Fields, p.MatchFields["platform"])
 	usernameIndex := findFieldIndex(p.Fields, p.MatchFields["identifier"])
 	passwordIndex := findFieldIndex(p.Fields, p.MatchFields["passphrase"])
+	urlIndex := findFieldIndex(p.Fields, p.MatchFields["url"])
 
-	if urlIndex == -1 || usernameIndex == -1 || passwordIndex == -1 {
+	if platformIndex == -1 || usernameIndex == -1 || passwordIndex == -1 || urlIndex == -1 {
 		return nil, schemas.NewAPIError(
 			schemas.ErrInvalidPlatform,
 			"Required fields not found in CSV",
@@ -159,15 +162,11 @@ func (p Platform) Parse(
 			continue // Skip malformed rows
 		}
 
-		platform := record[urlIndex]
-		if transformer, ok := p.TransformFields["platform"]; ok {
-			platform = transformer(platform)
-		}
-
 		account := schemas.RequestAccountsCreate{
-			Platform:   platform,
-			Identifier: record[usernameIndex],
-			Passphrase: record[passwordIndex],
+			Platform:   calculateFields(p.TransformFields["platform"], record[platformIndex]),
+			Identifier: calculateFields(p.TransformFields["identifier"], record[usernameIndex]),
+			Passphrase: calculateFields(p.TransformFields["passphrase"], record[passwordIndex]),
+			Url:        calculateFields(p.TransformFields["url"], record[urlIndex]),
 		}
 
 		results = append(results, account)

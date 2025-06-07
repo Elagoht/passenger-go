@@ -8,8 +8,9 @@ type RequestAccountsCreate struct {
 	Platform   string `json:"platform" validate:"required"`
 	Identifier string `json:"identifier" validate:"required"`
 	Passphrase string `json:"passphrase" validate:"required"`
-	Notes      string `json:"notes,omitempty"`
-	Favorite   bool   `json:"favorite,omitempty"`
+	Url        string `json:"url" validate:"required"`
+	Notes      string `json:"notes" validate:"omitempty"`
+	Favorite   bool   `json:"favorite" validate:"omitempty"`
 }
 
 type ResponseAccountsCreate struct {
@@ -17,17 +18,19 @@ type ResponseAccountsCreate struct {
 }
 
 type RequestAccountsUpdate struct {
-	Platform   string `json:"platform,omitempty"`
-	Identifier string `json:"identifier,omitempty"`
-	Passphrase string `json:"passphrase,omitempty"`
-	Notes      string `json:"notes,omitempty"`
-	Favorite   bool   `json:"favorite,omitempty"`
+	Platform   string `json:"platform" validate:"required"`
+	Identifier string `json:"identifier" validate:"required"`
+	Passphrase string `json:"passphrase" validate:"required"`
+	Url        string `json:"url" validate:"required"`
+	Notes      string `json:"notes" validate:"omitempty"`
+	Favorite   bool   `json:"favorite" validate:"omitempty"`
 }
 
 type ResponseAccountCard struct {
 	Id         string `json:"id"`
 	Platform   string `json:"platform"`
 	Identifier string `json:"identifier"`
+	Url        string `json:"url"`
 	Favorite   bool   `json:"favorite"`
 }
 
@@ -48,7 +51,8 @@ type ResponseAccountDetails struct {
 	Id           string     `json:"id"`
 	Platform     string     `json:"platform"`
 	Identifier   string     `json:"identifier"`
-	Notes        string     `json:"notes,omitempty"`
+	Url          string     `json:"url"`
+	Notes        string     `json:"notes"`
 	Favorite     bool       `json:"favorite"`
 	CreatedAt    time.Time  `json:"createdAt"`
 	UpdatedAt    time.Time  `json:"updatedAt"`

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"passenger-go/backend/models"
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
 )
@@ -28,10 +27,11 @@ func (service *TransferService) Import(
 	failedOnes := []schemas.RequestAccountsCreate{}
 
 	for _, account := range accounts {
-		_, err := service.repository.CreateAccount(&models.Account{
+		_, err := service.repository.CreateAccount(&schemas.RequestAccountsCreate{
 			Platform:   account.Platform,
 			Identifier: account.Identifier,
 			Passphrase: account.Passphrase,
+			Url:        account.Url,
 		})
 		if err != nil {
 			failedOnes = append(failedOnes, account)

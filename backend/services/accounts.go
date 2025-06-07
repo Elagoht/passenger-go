@@ -1,7 +1,6 @@
 package services
 
 import (
-	"passenger-go/backend/models"
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
 )
@@ -19,7 +18,7 @@ func NewAccountsService() *AccountsService {
 func (service *AccountsService) CreateAccount(
 	account *schemas.RequestAccountsCreate,
 ) (string, error) {
-	return service.repository.CreateAccount(&models.Account{
+	return service.repository.CreateAccount(&schemas.RequestAccountsCreate{
 		Platform:   account.Platform,
 		Identifier: account.Identifier,
 		Passphrase: account.Passphrase,
@@ -45,20 +44,14 @@ func (service *AccountsService) UpdateAccount(
 	id string,
 	account *schemas.RequestAccountsUpdate,
 ) error {
-	accountDetails, err := service.repository.GetAccountDetails(id)
-	if err != nil {
-		return err
-	}
-
-	accountModel := &models.Account{
-		Id:         accountDetails.Id,
-		Platform:   accountDetails.Platform,
-		Identifier: accountDetails.Identifier,
+	return service.repository.UpdateAccount(&schemas.RequestAccountsCreate{
+		Platform:   account.Platform,
+		Identifier: account.Identifier,
+		Passphrase: account.Passphrase,
+		Url:        account.Url,
 		Notes:      account.Notes,
 		Favorite:   account.Favorite,
-	}
-
-	return service.repository.UpdateAccount(accountModel)
+	})
 }
 
 func (service *AccountsService) DeleteAccount(

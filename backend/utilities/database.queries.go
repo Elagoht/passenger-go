@@ -14,6 +14,7 @@ const (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		platform TEXT NOT NULL,
 		identifier TEXT NOT NULL,
+		url TEXT DEFAULT NULL,
 		passphrase TEXT NOT NULL,
 		notes TEXT DEFAULT NULL,
 		favorite BOOLEAN DEFAULT FALSE,
