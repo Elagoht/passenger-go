@@ -9,7 +9,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var jwtSecret []byte
+var (
+	jwtSecret []byte
+)
 
 func init() {
 	err := godotenv.Load()
@@ -22,6 +24,10 @@ func init() {
 	if jwtSecret == nil {
 		log.Fatal("JWT_SECRET is not set")
 	}
+}
+
+func GetJWTSecret() []byte {
+	return jwtSecret
 }
 
 func GenerateJWT(userId int) (string, error) {

@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"passenger-go/backend/guards"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
 	"passenger-go/backend/utilities"
@@ -27,6 +28,8 @@ func NewTransferController() *TransferController {
 }
 
 func (controller *TransferController) MountTransferRouter(router *chi.Mux) {
+	controller.transferRouter.Mux().Use(guards.JWTGuard)
+
 	controller.transferRouter.Post("/import", controller.Import)
 	controller.transferRouter.Post("/export", controller.Export)
 

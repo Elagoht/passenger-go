@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"passenger-go/backend/guards"
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
@@ -13,27 +14,32 @@ import (
 )
 
 type AuthController struct {
-	authRouter  *utilities.Router
-	authService *services.AuthService
-	validator   *validator.Validate
+	publicRouter  *utilities.Router
+	privateRouter *utilities.Router
+	authService   *services.AuthService
+	validator     *validator.Validate
 }
 
 func NewAuthController() *AuthController {
 	return &AuthController{
-		validator:   pipes.GetValidator(),
-		authService: services.NewAuthService(),
-		authRouter:  utilities.NewRouter(chi.NewRouter()),
+		validator:     pipes.GetValidator(),
+		authService:   services.NewAuthService(),
+		publicRouter:  utilities.NewRouter(chi.NewRouter()),
+		privateRouter: utilities.NewRouter(chi.NewRouter()),
 	}
 }
 
 func (controller *AuthController) MountAuthRouter(router *chi.Mux) {
-	controller.authRouter.Get("/status", controller.Status)
-	controller.authRouter.Post("/register", controller.RegisterUser)
-	controller.authRouter.Post("/validate", controller.CompleteRegistration)
-	controller.authRouter.Post("/login", controller.LoginUser)
-	controller.authRouter.Post("/update", controller.UpdatePassphrase)
+	controller.privateRouter.Mux().Use(guards.JWTGuard)
+	controller.privateRouter.Post("/update", controller.UpdatePassphrase)
 
-	router.Mount("/auth", controller.authRouter.Mux())
+	controller.publicRouter.Get("/status", controller.Status)
+	controller.publicRouter.Post("/register", controller.RegisterUser)
+	controller.publicRouter.Post("/validate", controller.CompleteRegistration)
+	controller.publicRouter.Post("/login", controller.LoginUser)
+
+	router.Mount("/auth", controller.publicRouter.Mux())
+	router.Mount("/auth/protected", controller.privateRouter.Mux())
 }
 
 func (controller *AuthController) Status(

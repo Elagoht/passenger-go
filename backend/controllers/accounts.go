@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"passenger-go/backend/guards"
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
@@ -27,6 +28,8 @@ func NewAccountsController() *AccountsController {
 }
 
 func (controller *AccountsController) MountAccountsRouter(router *chi.Mux) {
+	controller.accountsRouter.Mux().Use(guards.JWTGuard)
+
 	controller.accountsRouter.Post("/", controller.CreateAccount)
 	controller.accountsRouter.Get("/", controller.GetAccountCards)
 	controller.accountsRouter.Get("/{id}", controller.GetAccountDetails)
