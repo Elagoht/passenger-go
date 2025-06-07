@@ -18,6 +18,7 @@ var httpErrorMapping = map[schemas.APIErrorCode]int{
 	schemas.ErrJWTGenerationFailed:      500,
 	schemas.ErrUnexpected:               500,
 	schemas.ErrDatabase:                 500,
+	schemas.ErrInvalidPlatform:          400,
 }
 
 func WriteHTTPError(writer http.ResponseWriter, error *schemas.APIError) {

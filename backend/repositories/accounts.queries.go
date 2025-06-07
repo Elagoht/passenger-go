@@ -42,4 +42,10 @@ const (
 	FROM accounts
 	WHERE id = ? AND deleted_at IS NULL
 	`
+	QueryAccountImport = `
+	BEGIN TRANSACTION;
+	INSERT INTO accounts (platform, identifier, passphrase, notes)
+	VALUES (?, ?, ?, ?);
+	COMMIT;
+	`
 )

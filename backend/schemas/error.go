@@ -31,4 +31,5 @@ const (
 	ErrInvalidRequest           APIErrorCode = "INVALID_REQUEST"
 	ErrUnprocessableEntity      APIErrorCode = "UNPROCESSABLE_ENTITY"
 	ErrAccountAlreadyExists     APIErrorCode = "ACCOUNT_ALREADY_EXISTS"
+	ErrInvalidPlatform          APIErrorCode = "INVALID_PLATFORM"
 )
