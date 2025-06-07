@@ -10,6 +10,7 @@ var httpErrorMapping = map[schemas.APIErrorCode]int{
 	schemas.ErrInvalidRequest:           400,
 	schemas.ErrInvalidCredentials:       401,
 	schemas.ErrNotInitializedYet:        403,
+	schemas.ErrAccountNotFound:          404,
 	schemas.ErrAlreadyInitialized:       409,
 	schemas.ErrAccountAlreadyExists:     409,
 	schemas.ErrUnprocessableEntity:      422,
@@ -21,12 +22,21 @@ var httpErrorMapping = map[schemas.APIErrorCode]int{
 	schemas.ErrInvalidPlatform:          400,
 }
 
-func WriteHTTPError(writer http.ResponseWriter, error *schemas.APIError) {
-	code, ok := httpErrorMapping[schemas.APIErrorCode(error.Code)]
+func WriteHTTPError(writer http.ResponseWriter, err error) {
+	apiError, ok := err.(*schemas.APIError)
+	if !ok {
+		apiError = schemas.NewAPIError(
+			schemas.ErrUnexpected,
+			"An unknown error occurred",
+			err,
+		)
+	}
+
+	code, ok := httpErrorMapping[schemas.APIErrorCode(apiError.Code)]
 	if !ok {
 		code = 500
 	}
 
 	writer.WriteHeader(code)
-	json.NewEncoder(writer).Encode(error)
+	json.NewEncoder(writer).Encode(apiError)
 }

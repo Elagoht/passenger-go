@@ -13,7 +13,7 @@ const (
 	LIMIT ? OFFSET ?
 	`
 	QueryAccountDetails = `
-	SELECT id, platform, identifier, passphrase, notes, favorite, created_at, updated_at, deleted_at, access_count, strength, last_accessed
+	SELECT id, platform, identifier, notes, favorite, created_at, updated_at, access_count, strength, last_accessed
 	FROM accounts
 	WHERE id = ? AND deleted_at IS NULL
 	`

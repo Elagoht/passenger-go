@@ -15,7 +15,7 @@ func NewAuthRepository() *AuthRepository {
 	return &AuthRepository{database: utilities.GetDB()}
 }
 
-func (repository *AuthRepository) GetUserCount() (int, *schemas.APIError) {
+func (repository *AuthRepository) GetUserCount() (int, error) {
 	rows, err := repository.database.Query(QueryGetUserCount)
 	if err != nil {
 		return 0, schemas.NewAPIError(

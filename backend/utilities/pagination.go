@@ -12,7 +12,7 @@ type Pagination struct {
 	Take int `json:"take"`
 }
 
-func PaginationParams(query *http.Request) (*Pagination, *schemas.APIError) {
+func PaginationParams(query *http.Request) (*Pagination, error) {
 	page := query.URL.Query().Get("page")
 	if page == "" {
 		page = "1"

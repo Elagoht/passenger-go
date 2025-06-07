@@ -32,4 +32,5 @@ const (
 	ErrUnprocessableEntity      APIErrorCode = "UNPROCESSABLE_ENTITY"
 	ErrAccountAlreadyExists     APIErrorCode = "ACCOUNT_ALREADY_EXISTS"
 	ErrInvalidPlatform          APIErrorCode = "INVALID_PLATFORM"
+	ErrAccountNotFound          APIErrorCode = "ACCOUNT_NOT_FOUND"
 )

@@ -18,33 +18,26 @@ func NewAccountsService() *AccountsService {
 
 func (service *AccountsService) CreateAccount(
 	account *schemas.RequestAccountsCreate,
-) (string, *schemas.APIError) {
-	accountModel := &models.Account{
+) (string, error) {
+	return service.repository.CreateAccount(&models.Account{
 		Platform:   account.Platform,
 		Identifier: account.Identifier,
 		Passphrase: account.Passphrase,
 		Notes:      account.Notes,
 		Favorite:   account.Favorite,
-	}
-
-	createdAccountId, err := service.repository.CreateAccount(accountModel)
-	if err != nil {
-		return "", err
-	}
-
-	return createdAccountId, nil
+	})
 }
 
 func (service *AccountsService) GetAccountCards(
 	page int,
 	take int,
-) ([]*models.Account, *schemas.APIError) {
+) ([]*schemas.ResponseAccountCard, error) {
 	return service.repository.GetAccountCards(page, take)
 }
 
 func (service *AccountsService) GetAccountDetails(
 	id string,
-) (*models.Account, *schemas.APIError) {
+) (*schemas.ResponseAccountDetails, error) {
 	return service.repository.GetAccountDetails(id)
 }
 
@@ -65,21 +58,11 @@ func (service *AccountsService) UpdateAccount(
 		Favorite:   account.Favorite,
 	}
 
-	_, err = service.repository.UpdateAccount(accountModel)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return service.repository.UpdateAccount(accountModel)
 }
 
 func (service *AccountsService) DeleteAccount(
 	id string,
 ) error {
-	_, err := service.repository.DeleteAccount(id)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return service.repository.DeleteAccount(id)
 }

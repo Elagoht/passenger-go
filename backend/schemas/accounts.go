@@ -1,7 +1,6 @@
 package schemas
 
 import (
-	"passenger-go/backend/models"
 	"time"
 )
 
@@ -32,7 +31,7 @@ type ResponseAccountCard struct {
 	Favorite   bool   `json:"favorite"`
 }
 
-func ToResponseAccountCard(account *models.Account) ResponseAccountCard {
+func ToResponseAccountCard(account *ResponseAccountCard) ResponseAccountCard {
 	return ResponseAccountCard{
 		Id:         account.Id,
 		Platform:   account.Platform,
@@ -51,11 +50,11 @@ type ResponseAccountDetails struct {
 	Identifier   string     `json:"identifier"`
 	Notes        string     `json:"notes,omitempty"`
 	Favorite     bool       `json:"favorite"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	AccessCount  int        `json:"access_count"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	AccessCount  int        `json:"accessCount"`
 	Strength     int        `json:"strength"`
-	LastAccessed *time.Time `json:"last_accessed"`
+	LastAccessed *time.Time `json:"lastAccessed"`
 }
 
 type ResponseAccountPassphrase struct {

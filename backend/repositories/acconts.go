@@ -19,7 +19,7 @@ func NewAccountsRepository() *AccountsRepository {
 
 func (repository *AccountsRepository) CreateAccount(
 	account *models.Account,
-) (string, *schemas.APIError) {
+) (string, error) {
 	statement, err := repository.database.Prepare(QueryAccountCreate)
 	if err != nil {
 		return "", schemas.NewAPIError(
@@ -68,7 +68,7 @@ func (repository *AccountsRepository) CreateAccount(
 func (repository *AccountsRepository) GetAccountCards(
 	page int,
 	take int,
-) ([]*models.Account, *schemas.APIError) {
+) ([]*schemas.ResponseAccountCard, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -91,9 +91,9 @@ func (repository *AccountsRepository) GetAccountCards(
 
 	defer rows.Close()
 
-	accounts := make([]*models.Account, 0)
+	accounts := make([]*schemas.ResponseAccountCard, 0)
 	for rows.Next() {
-		account := &models.Account{}
+		account := &schemas.ResponseAccountCard{}
 		err = rows.Scan(
 			&account.Id,
 			&account.Platform,
@@ -115,25 +115,30 @@ func (repository *AccountsRepository) GetAccountCards(
 
 func (repository *AccountsRepository) GetAccountDetails(
 	id string,
-) (*models.Account, *schemas.APIError) {
+) (*schemas.ResponseAccountDetails, error) {
 	row := repository.database.QueryRow(QueryAccountDetails, id)
 
-	account := &models.Account{}
+	account := &schemas.ResponseAccountDetails{}
 	err := row.Scan(
 		&account.Id,
 		&account.Platform,
 		&account.Identifier,
-		&account.Passphrase,
 		&account.Notes,
 		&account.Favorite,
 		&account.CreatedAt,
 		&account.UpdatedAt,
-		&account.DeletedAt,
 		&account.AccessCount,
 		&account.Strength,
 		&account.LastAccessed,
 	)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, schemas.NewAPIError(
+				schemas.ErrAccountNotFound,
+				"account not found",
+				err,
+			)
+		}
 		return nil, schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to scan account details",
@@ -146,10 +151,10 @@ func (repository *AccountsRepository) GetAccountDetails(
 
 func (repository *AccountsRepository) UpdateAccount(
 	account *models.Account,
-) (*models.Account, *schemas.APIError) {
+) error {
 	statement, err := repository.database.Prepare(QueryAccountUpdate)
 	if err != nil {
-		return nil, schemas.NewAPIError(
+		return schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to prepare account update statement",
 			err,
@@ -167,22 +172,22 @@ func (repository *AccountsRepository) UpdateAccount(
 		account.Id,
 	)
 	if err != nil {
-		return nil, schemas.NewAPIError(
+		return schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to update account",
 			err,
 		)
 	}
 
-	return account, nil
+	return nil
 }
 
 func (repository *AccountsRepository) DeleteAccount(
 	id string,
-) (*models.Account, *schemas.APIError) {
+) error {
 	statement, err := repository.database.Prepare(QueryAccountDelete)
 	if err != nil {
-		return nil, schemas.NewAPIError(
+		return schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to prepare account delete statement",
 			err,
@@ -192,20 +197,20 @@ func (repository *AccountsRepository) DeleteAccount(
 
 	_, err = statement.Exec(id)
 	if err != nil {
-		return nil, schemas.NewAPIError(
+		return schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to delete account",
 			err,
 		)
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (repository *AccountsRepository) UpdateAccountStrength(
 	id string,
 	strength int,
-) (int, *schemas.APIError) {
+) (int, error) {
 	statement, err := repository.database.Prepare(QueryAccountUpdateStrength)
 	if err != nil {
 		return 0, schemas.NewAPIError(
@@ -230,7 +235,7 @@ func (repository *AccountsRepository) UpdateAccountStrength(
 
 func (repository *AccountsRepository) UpdateAccountAccessed(
 	id string,
-) *schemas.APIError {
+) error {
 	statement, err := repository.database.Prepare(QueryAccountAccessed)
 	if err != nil {
 		return schemas.NewAPIError(
@@ -255,7 +260,7 @@ func (repository *AccountsRepository) UpdateAccountAccessed(
 
 func (repository *AccountsRepository) GetAccountPassphrase(
 	id string,
-) (string, *schemas.APIError) {
+) (string, error) {
 	row := repository.database.QueryRow(QueryAccountPassphrase, id)
 
 	passphrase := ""
