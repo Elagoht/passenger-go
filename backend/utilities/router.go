@@ -30,7 +30,8 @@ type HandlerWithError func(http.ResponseWriter, *http.Request) error
 
 func (r *Router) Handle(method string, pattern string, handler HandlerWithError) {
 	wrappedHandler := func(w http.ResponseWriter, req *http.Request) {
-		Logger.Printf("%s %s", req.Method, req.URL.Path)
+		logger := GetLogger()
+		logger.Printf("%s %s", req.Method, req.URL.Path)
 
 		if err := handler(w, req); err != nil {
 			HandleAPIError(w, err)

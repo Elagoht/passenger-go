@@ -2,9 +2,11 @@ package repositories
 
 import (
 	"database/sql"
+	"fmt"
 	"passenger-go/backend/models"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities"
+	"strings"
 )
 
 type AccountsRepository struct {
@@ -17,10 +19,10 @@ func NewAccountsRepository() *AccountsRepository {
 
 func (repository *AccountsRepository) CreateAccount(
 	account *models.Account,
-) (*models.Account, *schemas.APIError) {
+) (string, *schemas.APIError) {
 	statement, err := repository.database.Prepare(QueryAccountCreate)
 	if err != nil {
-		return nil, schemas.NewAPIError(
+		return "", schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to prepare account create statement",
 			err,
@@ -29,7 +31,7 @@ func (repository *AccountsRepository) CreateAccount(
 
 	defer statement.Close()
 
-	_, err = statement.Exec(
+	result, err := statement.Exec(
 		account.Platform,
 		account.Identifier,
 		account.Passphrase,
@@ -37,14 +39,30 @@ func (repository *AccountsRepository) CreateAccount(
 		account.Favorite,
 	)
 	if err != nil {
-		return nil, schemas.NewAPIError(
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return "", schemas.NewAPIError(
+				schemas.ErrAccountAlreadyExists,
+				"account already exists",
+				err,
+			)
+		}
+		return "", schemas.NewAPIError(
 			schemas.ErrDatabase,
 			"failed to create account",
 			err,
 		)
 	}
 
-	return account, nil
+	lastInsertId, err := result.LastInsertId()
+	if err != nil {
+		return "", schemas.NewAPIError(
+			schemas.ErrDatabase,
+			"failed to get last insert id",
+			err,
+		)
+	}
+
+	return fmt.Sprintf("%d", lastInsertId), nil
 }
 
 func (repository *AccountsRepository) GetAccountCards(

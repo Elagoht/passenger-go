@@ -3,10 +3,17 @@ package utilities
 import (
 	"log"
 	"os"
+	"sync"
 )
 
-var Logger *log.Logger
+var (
+	logger     *log.Logger
+	loggerOnce sync.Once
+)
 
-func init() {
-	Logger = log.New(os.Stdout, "[Passenger] ", log.LstdFlags|log.Lshortfile)
+func GetLogger() *log.Logger {
+	loggerOnce.Do(func() {
+		logger = log.New(os.Stdout, "[Passenger] ", log.LstdFlags|log.Lshortfile)
+	})
+	return logger
 }

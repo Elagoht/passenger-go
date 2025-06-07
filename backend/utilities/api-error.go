@@ -23,13 +23,13 @@ func HandleAPIError(writer http.ResponseWriter, err error) {
 	if err != nil {
 		if isDev {
 			if ok {
-				Logger.Printf("API Error Code: %v", apiError.Code)
-				Logger.Printf("API Error Message: %v", apiError.Message)
+				logger.Printf("API Error Code: %v", apiError.Code)
+				logger.Printf("API Error Message: %v", apiError.Message)
 				if apiError.Stack != nil {
-					Logger.Printf("API Error Stack: %v", apiError.Stack.Error())
+					logger.Printf("API Error Stack: %v", apiError.Stack.Error())
 				}
 			} else {
-				Logger.Printf("API Error: %v", err)
+				logger.Printf("API Error: %v", err)
 			}
 		}
 

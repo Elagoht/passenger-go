@@ -1,6 +1,9 @@
 package schemas
 
-import "time"
+import (
+	"passenger-go/backend/models"
+	"time"
+)
 
 type RequestAccountsCreate struct {
 	Platform   string `json:"platform" validate:"required"`
@@ -27,6 +30,15 @@ type ResponseAccountCard struct {
 	Platform   string `json:"platform"`
 	Identifier string `json:"identifier"`
 	Favorite   bool   `json:"favorite"`
+}
+
+func ToResponseAccountCard(account *models.Account) ResponseAccountCard {
+	return ResponseAccountCard{
+		Id:         account.Id,
+		Platform:   account.Platform,
+		Identifier: account.Identifier,
+		Favorite:   account.Favorite,
+	}
 }
 
 type ResponseAccountCardList struct {

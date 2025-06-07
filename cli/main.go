@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	logger := utilities.Logger
+	logger := utilities.GetLogger()
 
 	router := chi.NewRouter()
 

@@ -23,6 +23,7 @@ const (
 		access_count INTEGER DEFAULT 0,
 		strength INTEGER DEFAULT 0,
 		last_accessed DATETIME DEFAULT NULL,
+		UNIQUE(platform, identifier)
 	)
 	`
 	QuerySeedUser = `

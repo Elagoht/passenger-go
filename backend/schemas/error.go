@@ -28,4 +28,7 @@ const (
 	ErrInvalidCredentials       APIErrorCode = "INVALID_CREDENTIALS"
 	ErrJWTGenerationFailed      APIErrorCode = "JWT_GENERATION_FAILED"
 	ErrUnexpected               APIErrorCode = "UNEXPECTED"
+	ErrInvalidRequest           APIErrorCode = "INVALID_REQUEST"
+	ErrUnprocessableEntity      APIErrorCode = "UNPROCESSABLE_ENTITY"
+	ErrAccountAlreadyExists     APIErrorCode = "ACCOUNT_ALREADY_EXISTS"
 )
