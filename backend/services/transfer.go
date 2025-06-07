@@ -11,7 +11,9 @@ type TransferService struct {
 }
 
 func NewTransferService() *TransferService {
-	return &TransferService{repository: repositories.NewAccountsRepository()}
+	return &TransferService{
+		repository: repositories.NewAccountsRepository(),
+	}
 }
 
 type ImportResult struct {
