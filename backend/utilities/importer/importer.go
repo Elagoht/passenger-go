@@ -53,6 +53,7 @@ var (
 				"identifier": "username",
 				"passphrase": "password",
 				"url":        "url",
+				"notes":      "note",
 			},
 			TransformFields: map[string]fieldTransformer{},
 		},
@@ -113,7 +114,7 @@ func GetPlatform(file io.Reader) Platform {
 
 func (p Platform) Parse(
 	file io.Reader,
-) ([]schemas.RequestAccountsCreate, error) {
+) ([]schemas.RequestAccountsUpsert, error) {
 	csvReader := csv.NewReader(file)
 	csvReader.Comma = ',' // Always use comma as delimiter
 	csvReader.LazyQuotes = p.DelimiterQuotes == ""
@@ -129,13 +130,14 @@ func (p Platform) Parse(
 		)
 	}
 
-	results := []schemas.RequestAccountsCreate{}
+	results := []schemas.RequestAccountsUpsert{}
 
 	// Find field indices
 	platformIndex := findFieldIndex(p.Fields, p.MatchFields["platform"])
 	usernameIndex := findFieldIndex(p.Fields, p.MatchFields["identifier"])
 	passwordIndex := findFieldIndex(p.Fields, p.MatchFields["passphrase"])
 	urlIndex := findFieldIndex(p.Fields, p.MatchFields["url"])
+	notesIndex := findFieldIndex(p.Fields, p.MatchFields["notes"])
 
 	if platformIndex == -1 || usernameIndex == -1 || passwordIndex == -1 || urlIndex == -1 {
 		return nil, schemas.NewAPIError(
@@ -162,11 +164,12 @@ func (p Platform) Parse(
 			continue // Skip malformed rows
 		}
 
-		account := schemas.RequestAccountsCreate{
+		account := schemas.RequestAccountsUpsert{
 			Platform:   calculateFields(p.TransformFields["platform"], record[platformIndex]),
 			Identifier: calculateFields(p.TransformFields["identifier"], record[usernameIndex]),
 			Passphrase: calculateFields(p.TransformFields["passphrase"], record[passwordIndex]),
 			Url:        calculateFields(p.TransformFields["url"], record[urlIndex]),
+			Notes:      calculateFields(p.TransformFields["notes"], record[notesIndex]) + "",
 		}
 
 		results = append(results, account)

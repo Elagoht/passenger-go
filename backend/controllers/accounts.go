@@ -7,7 +7,6 @@ import (
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
-	"passenger-go/backend/utilities/pagination"
 	"passenger-go/backend/utilities/router"
 
 	"github.com/go-chi/chi"
@@ -31,20 +30,54 @@ func NewAccountsController() *AccountsController {
 func (controller *AccountsController) MountAccountsRouter(router *chi.Mux) {
 	controller.accountsRouter.Mux().Use(guards.JWTGuard)
 
+	controller.accountsRouter.Get("/", controller.GetAccounts)
+	controller.accountsRouter.Get("/{id}", controller.GetPassphrase)
 	controller.accountsRouter.Post("/", controller.CreateAccount)
-	controller.accountsRouter.Get("/", controller.GetAccountCards)
-	controller.accountsRouter.Get("/{id}", controller.GetAccountDetails)
+	controller.accountsRouter.Put("/{id}", controller.UpdateAccount)
 	controller.accountsRouter.Delete("/{id}", controller.DeleteAccount)
 
 	router.Mount("/accounts", controller.accountsRouter.Mux())
+}
+
+func (controller *AccountsController) GetAccounts(
+	writer http.ResponseWriter,
+	request *http.Request,
+) error {
+	accounts, err := controller.service.GetAccounts()
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(writer).Encode(accounts)
+}
+
+func (controller *AccountsController) GetPassphrase(
+	writer http.ResponseWriter,
+	request *http.Request,
+) error {
+	id := chi.URLParam(request, "id")
+	if id == "" {
+		return schemas.NewAPIError(
+			schemas.ErrInvalidRequest,
+			"Account ID is required",
+			nil,
+		)
+	}
+
+	passphrase, err := controller.service.GetPassphrase(id)
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(writer).Encode(passphrase)
 }
 
 func (controller *AccountsController) CreateAccount(
 	writer http.ResponseWriter,
 	request *http.Request,
 ) error {
-	account := &schemas.RequestAccountsCreate{}
-	if err := json.NewDecoder(request.Body).Decode(account); err != nil {
+	body := &schemas.RequestAccountsUpsert{}
+	if err := json.NewDecoder(request.Body).Decode(body); err != nil {
 		return schemas.NewAPIError(
 			schemas.ErrUnprocessableEntity,
 			"Invalid request body",
@@ -52,27 +85,21 @@ func (controller *AccountsController) CreateAccount(
 		)
 	}
 
-	if err := controller.validator.Struct(account); err != nil {
+	if err := controller.validator.Struct(body); err != nil {
 		return schemas.NewAPIError(
-			schemas.ErrUnprocessableEntity,
+			schemas.ErrInvalidRequest,
 			"Cannot validate request body",
 			err,
 		)
 	}
 
-	createdAccountId, err := controller.service.CreateAccount(account)
+	account, err := controller.service.CreateAccount(body)
 	if err != nil {
 		return err
 	}
 
-	json.NewEncoder(writer).Encode(
-		schemas.ResponseAccountsCreate{
-			Id: createdAccountId,
-		},
-	)
 	writer.WriteHeader(http.StatusCreated)
-
-	return nil
+	return json.NewEncoder(writer).Encode(account)
 }
 
 func (controller *AccountsController) UpdateAccount(
@@ -80,9 +107,16 @@ func (controller *AccountsController) UpdateAccount(
 	request *http.Request,
 ) error {
 	id := chi.URLParam(request, "id")
+	if id == "" {
+		return schemas.NewAPIError(
+			schemas.ErrInvalidRequest,
+			"Account ID is required",
+			nil,
+		)
+	}
 
-	account := &schemas.RequestAccountsUpdate{}
-	if err := json.NewDecoder(request.Body).Decode(account); err != nil {
+	body := &schemas.RequestAccountsUpsert{}
+	if err := json.NewDecoder(request.Body).Decode(body); err != nil {
 		return schemas.NewAPIError(
 			schemas.ErrUnprocessableEntity,
 			"Invalid request body",
@@ -90,65 +124,20 @@ func (controller *AccountsController) UpdateAccount(
 		)
 	}
 
-	if err := controller.validator.Struct(account); err != nil {
+	if err := controller.validator.Struct(body); err != nil {
 		return schemas.NewAPIError(
-			schemas.ErrUnprocessableEntity,
+			schemas.ErrInvalidRequest,
 			"Cannot validate request body",
 			err,
 		)
 	}
 
-	err := controller.service.UpdateAccount(id, account)
+	err := controller.service.UpdateAccount(id, body)
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (controller *AccountsController) GetAccountCards(
-	writer http.ResponseWriter,
-	request *http.Request,
-) error {
-	pagination, err := pagination.PaginationParams(request)
-	if err != nil {
-		return err
-	}
-
-	accountCards, err := controller.service.GetAccountCards(
-		pagination.Page,
-		pagination.Take,
-	)
-	if err != nil {
-		return err
-	}
-
-	response := schemas.ResponseAccountCardList{
-		Accounts: make([]schemas.ResponseAccountCard, len(accountCards)),
-	}
-
-	for i, account := range accountCards {
-		response.Accounts[i] = schemas.ToResponseAccountCard(account)
-	}
-
-	json.NewEncoder(writer).Encode(response)
-
-	return nil
-}
-
-func (controller *AccountsController) GetAccountDetails(
-	writer http.ResponseWriter,
-	request *http.Request,
-) error {
-	id := chi.URLParam(request, "id")
-
-	account, err := controller.service.GetAccountDetails(id)
-	if err != nil {
-		return err
-	}
-
-	json.NewEncoder(writer).Encode(account)
-
+	writer.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -157,6 +146,13 @@ func (controller *AccountsController) DeleteAccount(
 	request *http.Request,
 ) error {
 	id := chi.URLParam(request, "id")
+	if id == "" {
+		return schemas.NewAPIError(
+			schemas.ErrInvalidRequest,
+			"Account ID is required",
+			nil,
+		)
+	}
 
 	err := controller.service.DeleteAccount(id)
 	if err != nil {
@@ -164,6 +160,5 @@ func (controller *AccountsController) DeleteAccount(
 	}
 
 	writer.WriteHeader(http.StatusNoContent)
-
 	return nil
 }

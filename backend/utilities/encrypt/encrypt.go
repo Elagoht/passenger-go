@@ -9,30 +9,32 @@ import (
 	"errors"
 	"io"
 	"os"
+	"passenger-go/backend/utilities/logger"
 
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/pbkdf2"
 )
 
-var aesGCMSecret []byte
+var aesGCMSecret = []byte{}
 
-func getAESGCMSecret() ([]byte, error) {
-	secret := os.Getenv("AES_GCM_SECRET")
-	if secret == "" {
-		return nil, errors.New("AES_GCM_SECRET environment variable is not set")
-	}
-	aesGCMSecret = []byte(secret)
-
-	if len(aesGCMSecret) < 32 {
-		return nil, errors.New("AES_GCM_SECRET must be at least 32 bytes long")
+func init() {
+	godotenv.Load()
+	log := logger.GetLogger()
+	aesGCMSecret = []byte(os.Getenv("AES_GCM_SECRET"))
+	if string(aesGCMSecret) == "" {
+		log.Fatal("AES_GCM_SECRET environment variable is not set")
 	}
 
-	return aesGCMSecret, nil
+	if len(aesGCMSecret) != 32 {
+		log.Fatal("AES_GCM_SECRET must be 32 bytes long")
+	}
 }
 
-func Encrypt(passphrase string) (string, error) {
+// HashPassword creates a secure one-way hash of the password using Argon2
+func HashPassword(password string) (string, error) {
 	hash := argon2.IDKey(
-		[]byte(passphrase),
+		[]byte(password),
 		[]byte(os.Getenv("SALT")),
 		1,
 		64*1024,
@@ -40,6 +42,29 @@ func Encrypt(passphrase string) (string, error) {
 		32,
 	)
 	return base64.StdEncoding.EncodeToString(hash), nil
+}
+
+// VerifyPassword checks if the provided password matches the hash
+func VerifyPassword(password, hashedPassword string) (bool, error) {
+	hash, err := HashPassword(password)
+	if err != nil {
+		return false, err
+	}
+	return hash == hashedPassword, nil
+}
+
+// Encrypt encrypts data using AES-GCM and returns a base64 encoded string
+func Encrypt(data string) (string, error) {
+	return AESGCMEncrypt([]byte(data))
+}
+
+// Decrypt decrypts a base64 encoded encrypted string
+func Decrypt(encryptedData string) (string, error) {
+	decrypted, err := AESGCMDecrypt(encryptedData)
+	if err != nil {
+		return "", err
+	}
+	return string(decrypted), nil
 }
 
 func GenerateRecoveryKey(passphrase string) (string, error) {
@@ -57,12 +82,7 @@ func GenerateRecoveryKey(passphrase string) (string, error) {
 }
 
 func AESGCMEncrypt(data []byte) (string, error) {
-	secret, err := getAESGCMSecret()
-	if err != nil {
-		return "", err
-	}
-
-	block, err := aes.NewCipher(secret)
+	block, err := aes.NewCipher(aesGCMSecret)
 	if err != nil {
 		return "", err
 	}
@@ -82,12 +102,7 @@ func AESGCMEncrypt(data []byte) (string, error) {
 }
 
 func AESGCMDecrypt(data string) ([]byte, error) {
-	secret, err := getAESGCMSecret()
-	if err != nil {
-		return nil, err
-	}
-
-	block, err := aes.NewCipher(secret)
+	block, err := aes.NewCipher(aesGCMSecret)
 	if err != nil {
 		return nil, err
 	}

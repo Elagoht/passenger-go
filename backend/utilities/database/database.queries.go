@@ -17,13 +17,7 @@ const (
 		url TEXT DEFAULT NULL,
 		passphrase TEXT NOT NULL,
 		notes TEXT DEFAULT NULL,
-		favorite BOOLEAN DEFAULT FALSE,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		deleted_at DATETIME DEFAULT NULL, -- using soft delete
-		access_count INTEGER DEFAULT 0,
 		strength INTEGER DEFAULT 0,
-		last_accessed DATETIME DEFAULT NULL,
 		UNIQUE(platform, identifier)
 	)
 	`

@@ -13,6 +13,7 @@ var httpErrorMapping = map[schemas.APIErrorCode]int{
 	schemas.ErrAccountNotFound:          404,
 	schemas.ErrAlreadyInitialized:       409,
 	schemas.ErrAccountAlreadyExists:     409,
+	schemas.ErrAnotherAccountFound:      409,
 	schemas.ErrUnprocessableEntity:      422,
 	schemas.ErrEncryptionFailed:         500,
 	schemas.ErrRecoveryGenerationFailed: 500,

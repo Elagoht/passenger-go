@@ -2,9 +2,10 @@ package repositories
 
 import (
 	"database/sql"
-	"fmt"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities/database"
+	"passenger-go/backend/utilities/strength"
+	"strconv"
 	"strings"
 )
 
@@ -16,19 +17,72 @@ func NewAccountsRepository() *AccountsRepository {
 	return &AccountsRepository{database: database.GetDB()}
 }
 
-func (repository *AccountsRepository) CreateAccount(
-	account *schemas.RequestAccountsCreate,
-) (string, error) {
-	statement, err := repository.database.Prepare(QueryAccountCreate)
+func (repository *AccountsRepository) GetAccounts() ([]*schemas.ResponseAccount, error) {
+	statement, err := repository.database.Prepare(QueryAccounts)
 	if err != nil {
-		return "", schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to prepare account create statement",
-			err,
-		)
+		return nil, err
 	}
 
-	defer statement.Close()
+	rows, err := statement.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := []*schemas.ResponseAccount{}
+
+	for rows.Next() {
+		var account schemas.ResponseAccount
+		err = rows.Scan(
+			&account.Id,
+			&account.Platform,
+			&account.Identifier,
+			&account.Url,
+			&account.Notes,
+			&account.Strength,
+		)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, &account)
+	}
+
+	return accounts, nil
+}
+
+func (repository *AccountsRepository) GetPassphrase(id string) (string, error) {
+	statement, err := repository.database.Prepare(QueryAccountPassphrase)
+	if err != nil {
+		return "", err
+	}
+
+	var passphrase string
+	err = statement.QueryRow(id).Scan(&passphrase)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", schemas.NewAPIError(
+				schemas.ErrAccountNotFound,
+				"Account not found",
+				nil,
+			)
+		}
+		return "", err
+	}
+
+	return passphrase, nil
+}
+
+func (repository *AccountsRepository) CreateAccount(
+	account *schemas.RequestAccountsUpsert,
+) (*schemas.ResponseAccountsCreate, error) {
+	statement, err := repository.database.Prepare(QueryAccountCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	strengthScore, err := strength.CalculateStrength(account.Passphrase)
+	if err != nil {
+		return nil, err
+	}
 
 	result, err := statement.Exec(
 		account.Platform,
@@ -36,135 +90,42 @@ func (repository *AccountsRepository) CreateAccount(
 		account.Passphrase,
 		account.Url,
 		account.Notes,
-		account.Favorite,
+		strengthScore,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			return "", schemas.NewAPIError(
+			return nil, schemas.NewAPIError(
 				schemas.ErrAccountAlreadyExists,
-				"account already exists",
-				err,
+				"Account already exists",
+				nil,
 			)
 		}
-
-		return "", schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to create account",
-			err,
-		)
+		return nil, err
 	}
 
-	lastInsertId, err := result.LastInsertId()
+	lastInsertedId, err := result.LastInsertId()
 	if err != nil {
-		return "", schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to get last insert id",
-			err,
-		)
+		return nil, err
 	}
 
-	return fmt.Sprintf("%d", lastInsertId), nil
-}
-
-func (repository *AccountsRepository) GetAccountCards(
-	page int,
-	take int,
-) ([]*schemas.ResponseAccountCard, error) {
-	if page < 1 {
-		page = 1
-	}
-	if take < 1 {
-		take = 10
-	}
-
-	rows, err := repository.database.Query(
-		QueryAccountCards,
-		take,
-		(page-1)*take,
-	)
-	if err != nil {
-		return nil, schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to get account cards",
-			err,
-		)
-	}
-
-	defer rows.Close()
-
-	accounts := make([]*schemas.ResponseAccountCard, 0)
-	for rows.Next() {
-		account := &schemas.ResponseAccountCard{}
-		err = rows.Scan(
-			&account.Id,
-			&account.Platform,
-			&account.Identifier,
-			&account.Url,
-			&account.Favorite,
-		)
-		if err != nil {
-			return nil, schemas.NewAPIError(
-				schemas.ErrDatabase,
-				"failed to scan account card",
-				err,
-			)
-		}
-		accounts = append(accounts, account)
-	}
-
-	return accounts, nil
-}
-
-func (repository *AccountsRepository) GetAccountDetails(
-	id string,
-) (*schemas.ResponseAccountDetails, error) {
-	row := repository.database.QueryRow(QueryAccountDetails, id)
-
-	account := &schemas.ResponseAccountDetails{}
-	err := row.Scan(
-		&account.Id,
-		&account.Platform,
-		&account.Identifier,
-		&account.Url,
-		&account.Notes,
-		&account.Favorite,
-		&account.CreatedAt,
-		&account.UpdatedAt,
-		&account.AccessCount,
-		&account.Strength,
-		&account.LastAccessed,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, schemas.NewAPIError(
-				schemas.ErrAccountNotFound,
-				"account not found",
-				err,
-			)
-		}
-		return nil, schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to scan account details",
-			err,
-		)
-	}
-
-	return account, nil
+	return &schemas.ResponseAccountsCreate{
+		Id: strconv.FormatInt(lastInsertedId, 10),
+	}, nil
 }
 
 func (repository *AccountsRepository) UpdateAccount(
-	account *schemas.RequestAccountsCreate,
+	id string,
+	account *schemas.RequestAccountsUpsert,
 ) error {
 	statement, err := repository.database.Prepare(QueryAccountUpdate)
 	if err != nil {
-		return schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to prepare account update statement",
-			err,
-		)
+		return err
 	}
 
-	defer statement.Close()
+	strengthScore, err := strength.CalculateStrength(account.Passphrase)
+	if err != nil {
+		return err
+	}
 
 	_, err = statement.Exec(
 		account.Platform,
@@ -172,83 +133,45 @@ func (repository *AccountsRepository) UpdateAccount(
 		account.Passphrase,
 		account.Url,
 		account.Notes,
-		account.Favorite,
+		strengthScore,
 	)
 	if err != nil {
-		return schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to update account",
-			err,
-		)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return schemas.NewAPIError(
+				schemas.ErrAnotherAccountFound,
+				"An account with the same platform and identifier already exists",
+				nil,
+			)
+		}
+		return err
 	}
 
 	return nil
 }
 
-func (repository *AccountsRepository) DeleteAccount(
-	id string,
-) error {
+func (repository *AccountsRepository) DeleteAccount(id string) error {
 	statement, err := repository.database.Prepare(QueryAccountDelete)
 	if err != nil {
-		return schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to prepare account delete statement",
-			err,
-		)
+		return err
 	}
-	defer statement.Close()
 
-	_, err = statement.Exec(id)
+	result, err := statement.Exec(id)
 	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
 		return schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to delete account",
-			err,
+			schemas.ErrAccountNotFound,
+			"Account not found",
+			nil,
 		)
 	}
 
 	return nil
-}
-
-func (repository *AccountsRepository) UpdateAccountAccessed(
-	id string,
-) error {
-	statement, err := repository.database.Prepare(QueryAccountAccessed)
-	if err != nil {
-		return schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to prepare account update accessed statement",
-			err,
-		)
-	}
-	defer statement.Close()
-
-	_, err = statement.Exec(id)
-	if err != nil {
-		return schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to update account accessed",
-			err,
-		)
-	}
-
-	return nil
-}
-
-func (repository *AccountsRepository) GetAccountPassphrase(
-	id string,
-) (string, error) {
-	row := repository.database.QueryRow(QueryAccountPassphrase, id)
-
-	passphrase := ""
-	err := row.Scan(&passphrase)
-	if err != nil {
-		return "", schemas.NewAPIError(
-			schemas.ErrDatabase,
-			"failed to scan account passphrase",
-			err,
-		)
-	}
-
-	return passphrase, nil
 }

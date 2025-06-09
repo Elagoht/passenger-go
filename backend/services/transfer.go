@@ -17,21 +17,22 @@ func NewTransferService() *TransferService {
 
 type ImportResult struct {
 	SuccessCount int                             `json:"successCount"`
-	FailedOnes   []schemas.RequestAccountsCreate `json:"failedOnes"`
+	FailedOnes   []schemas.RequestAccountsUpsert `json:"failedOnes"`
 }
 
 func (service *TransferService) Import(
-	accounts []schemas.RequestAccountsCreate,
+	accounts []schemas.RequestAccountsUpsert,
 ) (*ImportResult, error) {
 	successCount := 0
-	failedOnes := []schemas.RequestAccountsCreate{}
+	failedOnes := []schemas.RequestAccountsUpsert{}
 
 	for _, account := range accounts {
-		_, err := service.repository.CreateAccount(&schemas.RequestAccountsCreate{
+		_, err := service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
 			Platform:   account.Platform,
 			Identifier: account.Identifier,
 			Passphrase: account.Passphrase,
 			Url:        account.Url,
+			Notes:      account.Notes,
 		})
 		if err != nil {
 			failedOnes = append(failedOnes, account)

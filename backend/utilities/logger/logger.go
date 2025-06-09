@@ -13,7 +13,7 @@ var (
 
 func GetLogger() *log.Logger {
 	loggerOnce.Do(func() {
-		logger = log.New(os.Stdout, "[Passenger] ", log.LstdFlags|log.Lshortfile)
+		logger = log.New(os.Stdout, "[Passenger] ", log.LstdFlags)
 	})
 	return logger
 }

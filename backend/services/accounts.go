@@ -3,6 +3,7 @@ package services
 import (
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
+	"passenger-go/backend/utilities/encrypt"
 )
 
 type AccountsService struct {
@@ -15,47 +16,80 @@ func NewAccountsService() *AccountsService {
 	}
 }
 
+func (service *AccountsService) GetAccounts() ([]*schemas.ResponseAccount, error) {
+	accounts, err := service.repository.GetAccounts()
+	if err != nil {
+		return nil, err
+	}
+
+	return accounts, nil
+}
+
+func (service *AccountsService) GetPassphrase(id string) (string, error) {
+	passphrase, err := service.repository.GetPassphrase(id)
+	if err != nil {
+		return "", err
+	}
+
+	decryptedPassphrase, err := encrypt.Decrypt(passphrase)
+	if err != nil {
+		return "", err
+	}
+
+	return decryptedPassphrase, nil
+}
+
 func (service *AccountsService) CreateAccount(
-	account *schemas.RequestAccountsCreate,
-) (string, error) {
-	return service.repository.CreateAccount(&schemas.RequestAccountsCreate{
-		Platform:   account.Platform,
-		Identifier: account.Identifier,
-		Passphrase: account.Passphrase,
-		Notes:      account.Notes,
-		Favorite:   account.Favorite,
+	body *schemas.RequestAccountsUpsert,
+) (*schemas.ResponseAccountsCreate, error) {
+	encryptedPassphrase, err := encrypt.Encrypt(body.Passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
+		Platform:   body.Platform,
+		Identifier: body.Identifier,
+		Passphrase: encryptedPassphrase,
+		Url:        body.Url,
+		Notes:      body.Notes,
 	})
-}
+	if err != nil {
+		return nil, err
+	}
 
-func (service *AccountsService) GetAccountCards(
-	page int,
-	take int,
-) ([]*schemas.ResponseAccountCard, error) {
-	return service.repository.GetAccountCards(page, take)
-}
-
-func (service *AccountsService) GetAccountDetails(
-	id string,
-) (*schemas.ResponseAccountDetails, error) {
-	return service.repository.GetAccountDetails(id)
+	return account, nil
 }
 
 func (service *AccountsService) UpdateAccount(
 	id string,
-	account *schemas.RequestAccountsUpdate,
+	body *schemas.RequestAccountsUpsert,
 ) error {
-	return service.repository.UpdateAccount(&schemas.RequestAccountsCreate{
-		Platform:   account.Platform,
-		Identifier: account.Identifier,
-		Passphrase: account.Passphrase,
-		Url:        account.Url,
-		Notes:      account.Notes,
-		Favorite:   account.Favorite,
+	encryptedPassphrase, err := encrypt.Encrypt(body.Passphrase)
+	if err != nil {
+		return err
+	}
+
+	err = service.repository.UpdateAccount(id, &schemas.RequestAccountsUpsert{
+		Platform:   body.Platform,
+		Identifier: body.Identifier,
+		Passphrase: encryptedPassphrase,
+		Url:        body.Url,
+		Notes:      body.Notes,
 	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (service *AccountsService) DeleteAccount(
-	id string,
-) error {
-	return service.repository.DeleteAccount(id)
+func (service *AccountsService) DeleteAccount(id string) error {
+	err := service.repository.DeleteAccount(id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
