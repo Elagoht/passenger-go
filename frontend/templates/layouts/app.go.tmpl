@@ -1,0 +1,14 @@
+{{ define "layouts/app.go.tmpl" }}
+{{ template "base" . }}
+{{ end }}
+
+{{ define "content" }}
+<div class="card">
+  <p>This is the content of the app layout.</p>
+
+  {{ block "page" . }}
+  {{ end }}
+</div>
+{{ end }}
+
+{{ define "title" }}Passenger Passphrase Manager{{ end }}

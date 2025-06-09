@@ -1,0 +1,13 @@
+{{ template "layouts/app.go.tmpl" . }}
+
+{{ define "title" }}Welcome - Passenger{{ end }}
+
+{{ define "page" }}
+<h2>Welcome to Passenger</h2>
+<p class="mb-4">Your secure password manager for all your accounts.</p>
+
+<div class="flex items-center">
+  <a href="/login" class="btn btn-primary">Login</a>
+  <a href="/register" class="btn" style="margin-left: 1rem;">Register</a>
+</div>
+{{ end }}

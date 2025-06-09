@@ -1,0 +1,20 @@
+{{ define "layouts/auth.go.tmpl" }}
+{{ template "base" . }}
+{{ end }}
+
+{{ define "head" }}
+  <link rel="stylesheet" href="/static/css/auth.css" />
+{{ end }}
+
+{{ define "content" }}
+  <figure>
+    <img src="/static/img/passenger.png" width="100" height="100" alt="Passenger" />
+  </figure>
+
+  <h1>Passenger</h1>
+
+  <small>Self-Hosted Passphrase Manager</small>
+
+  {{ block "page" . }}
+  {{ end }}
+{{ end }}

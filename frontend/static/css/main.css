@@ -1,0 +1,184 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+}
+
+:root {
+  --accent-bg: AccentColor;
+  --accent-text: AccentColorText;
+  --active-link: ActiveText;
+  --button-border: ButtonBorder;
+  --button-bg: AccentColor;
+  --button-text: AccentColorText;
+  --canvas-bg: Canvas;
+  --canvas-text: CanvasText;
+  --field-bg: Field;
+  --field-text: FieldText;
+  --disabled-text: GrayText;
+  --highlight-bg: Highlight;
+  --highlight-text: HighlightText;
+  --link-text: LinkText;
+  --mark-bg: Mark;
+  --mark-text: MarkText;
+  --selected-bg: SelectedItem;
+  --selected-text: SelectedItemText;
+  --visited-link: VisitedText;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent-bg: AccentColorText;
+    --accent-text: AccentColor;
+    --canvas-bg: CanvasText;
+    --canvas-text: Canvas;
+    --field-bg: FieldText;
+    --field-text: Field;
+    --highlight-bg: HighlightText;
+    --highlight-text: Highlight;
+    --mark-bg: MarkText;
+    --mark-text: Mark;
+    --selected-bg: SelectedItemText;
+    --selected-text: SelectedItem;
+    --button-border: GrayText;
+  }
+}
+
+body {
+  background-color: var(--canvas-bg);
+  color: var(--canvas-text);
+  line-height: 1.5;
+  padding: 1rem;
+}
+
+button {
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: 1px solid var(--accent-bg);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+button:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--button-bg) 80%,
+    var(--canvas-bg) 20%
+  );
+  color: var(--button-text);
+}
+
+button:focus {
+  outline: 2px solid var(--highlight-bg);
+  outline-offset: 2px;
+}
+
+button:active {
+  background-color: var(--highlight-bg);
+  color: var(--highlight-text);
+  border-color: var(--highlight-bg);
+}
+
+button:disabled {
+  background-color: color-mix(
+    in srgb,
+    var(--button-bg) 50%,
+    var(--canvas-bg) 50%
+  );
+  color: var(--disabled-text);
+  border-color: var(--button-border);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+input,
+textarea,
+select {
+  background-color: var(--field-bg);
+  color: var(--field-text);
+  border: 1px solid var(--button-border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--highlight-bg);
+  outline: 2px solid var(--highlight-bg);
+  outline-offset: 1px;
+}
+
+a {
+  color: var(--link-text);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--active-link);
+  text-decoration: underline;
+}
+
+a:focus {
+  outline: 2px solid var(--highlight-bg);
+  outline-offset: 2px;
+}
+
+a:active {
+  color: var(--active-link);
+}
+
+a:visited {
+  color: var(--visited-link);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--selected-bg);
+  color: var(--selected-text);
+}
+
+mark {
+  background-color: var(--mark-bg);
+  color: var(--mark-text);
+  padding: 0.1rem 0.3rem;
+  border-radius: 2px;
+}
+
+:disabled {
+  color: var(--disabled-text);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+  background-color: var(--canvas-bg);
+  color: var(--canvas-text);
+}
+
+@media (max-width: 600px) {
+  button,
+  input,
+  textarea,
+  select {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+label:has(span) {
+  display: flex;
+  flex-direction: column;
+}

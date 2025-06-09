@@ -50,7 +50,7 @@ func (service *AuthService) Status() (bool, error) {
 	return count > 0, nil
 }
 
-func (service *AuthService) RegisterUser(passphrase string) (string, error) {
+func (service *AuthService) RegisterUser(passphrase string) (recoveryKey string, err error) {
 	initialized, err := service.Status()
 	if err != nil {
 		return "", err
@@ -73,7 +73,7 @@ func (service *AuthService) RegisterUser(passphrase string) (string, error) {
 		)
 	}
 
-	recoveryKey, err := encrypt.GenerateRecoveryKey(passphrase)
+	recoveryKey, err = encrypt.GenerateRecoveryKey(passphrase)
 
 	if err != nil {
 		return "", schemas.NewAPIError(

@@ -7,6 +7,7 @@ import (
 	"passenger-go/backend"
 	"passenger-go/backend/middlewares"
 	"passenger-go/backend/utilities/logger"
+	"passenger-go/frontend"
 
 	"github.com/go-chi/chi"
 )
@@ -16,9 +17,20 @@ func main() {
 
 	router := chi.NewRouter()
 
-	router.Use(middlewares.SetAPIContentTypeJSON)
+	// Initialize frontend controller
+	frontendController, err := frontend.NewFrontendController()
+	if err != nil {
+		log.Fatalf("Failed to initialize frontend controller: %v", err)
+	}
 
-	router = backend.MountBackend(router)
+	// Mount frontend routes first
+	frontendController.MountFrontendRouter(router)
+
+	// Mount API routes with JSON content type middleware
+	apiRouter := chi.NewRouter()
+	apiRouter.Use(middlewares.SetAPIContentTypeJSON)
+	apiRouter = backend.MountBackend(apiRouter)
+	router.Mount("/api", apiRouter)
 
 	// Start the server
 	port := os.Getenv("PORT")
