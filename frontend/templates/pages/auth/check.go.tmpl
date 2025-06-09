@@ -1,0 +1,21 @@
+{{ define "check" }}
+{{ template "auth" . }}{{ end }}
+{{ define "title" }}Double Check - Passenger{{ end }}
+{{ define "page" }}
+<form action="/complete" method="post">
+  <strong>
+    Just to be sure if you really stored your recovery key in a safe place.
+  </strong>
+
+  <label>
+    <span>Recovery Key</span>
+    <input type="text" name="recovery" />
+  </label>
+
+  {{ if .Error }}
+  <small>{{ .Error }}</small>
+  {{ end }}
+
+  <button type="submit">Complete</button>
+</form>
+{{ end }}

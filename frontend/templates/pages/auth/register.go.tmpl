@@ -1,0 +1,26 @@
+{{ define "register" }}
+{{ template "auth" . }}{{ end }}
+{{ define "title" }}Register - Passenger{{ end }}
+{{ define "page" }}
+<p>Lets initialize your vault.</p>
+
+<form action="/register" method="post">
+  <label>
+    <span>Passphrase</span>
+
+    <input type="password" name="passphrase" />
+  </label>
+
+  <label>
+    <span>Confirm Passphrase</span>
+
+    <input type="password" name="confirm-passphrase" />
+  </label>
+
+  {{ if .Error }}
+  <small class="error">{{ .Error }}</small>
+  {{ end }}
+
+  <button type="submit">Register</button>
+</form>
+{{ end }}

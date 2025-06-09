@@ -1,0 +1,18 @@
+{{ define "validate" }}
+{{ template "auth" . }}{{ end }}
+{{ define "title" }}Validate - Passenger{{ end }}
+{{ define "page" }}
+<strong>
+  Here is your recovery key. Please copy it to a safe place. If you will forget your passphrase, you can use this key to recover your account. <i>Think this is the <u>PUK code</u> of your sim card.</i>
+</strong>
+
+<form action="/check" method="post">
+  <label>
+    <span>Recovery Key</span>
+
+    <input type="text" readonly name="recovery" value="{{ .Recovery }}" />
+  </label>
+
+  <button type="submit">Understood</button>
+</form>
+{{ end }}
