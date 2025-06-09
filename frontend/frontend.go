@@ -15,10 +15,6 @@ type FrontendController struct {
 	authService *services.AuthService
 }
 
-type TemplateData struct {
-	Year int
-}
-
 func NewFrontendController() (*FrontendController, error) {
 	// Parse all templates
 	templates, err := template.ParseGlob("frontend/templates/**/*.go.tmpl")
@@ -47,52 +43,97 @@ func (c *FrontendController) MountFrontendRouter(router *chi.Mux) {
 	router.Post("/register", c.formRegister)
 }
 
-func (c *FrontendController) handleIndex(w http.ResponseWriter, r *http.Request) {
-	err := c.templates.ExecuteTemplate(w, "base", nil)
+func (controller *FrontendController) handleIndex(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	err := controller.templates.ExecuteTemplate(
+		writer,
+		"base",
+		nil,
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		http.Error(
+			writer,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
 	}
 }
 
-func (c *FrontendController) routeLogin(w http.ResponseWriter, r *http.Request) {
-	err := c.templates.ExecuteTemplate(w, "pages/login.go.tmpl", nil)
+func (controller *FrontendController) routeLogin(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	err := controller.templates.ExecuteTemplate(
+		writer,
+		"pages/login.go.tmpl",
+		nil,
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		http.Error(
+			writer,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
 	}
 }
 
-func (c *FrontendController) routeRegister(w http.ResponseWriter, r *http.Request) {
-	err := c.templates.ExecuteTemplate(w, "pages/register.go.tmpl", nil)
+func (controller *FrontendController) routeRegister(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	err := controller.templates.ExecuteTemplate(
+		writer,
+		"pages/register.go.tmpl",
+		nil,
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		http.Error(
+			writer,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
 	}
 }
 
-func (c *FrontendController) formRegister(w http.ResponseWriter, r *http.Request) {
-	passphrase := r.FormValue("passphrase")
-	confirmPassphrase := r.FormValue("confirm-passphrase")
+func (controller *FrontendController) formRegister(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	passphrase := request.FormValue("passphrase")
+	confirmPassphrase := request.FormValue("confirm-passphrase")
 
 	formError := form.ValidateRegisterForm(passphrase, confirmPassphrase)
 
 	if formError != "" {
-		err := c.templates.ExecuteTemplate(w, "pages/register.go.tmpl", map[string]string{
-			"Error": formError,
-		})
+		err := controller.templates.ExecuteTemplate(
+			writer,
+			"pages/register.go.tmpl",
+			map[string]string{
+				"Error": formError,
+			},
+		)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(
+				writer,
+				err.Error(),
+				http.StatusInternalServerError,
+			)
 			return
 		}
 	}
 
-	recoveryKey, err := c.authService.RegisterUser(passphrase)
+	recoveryKey, err := controller.authService.RegisterUser(passphrase)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(
+			writer,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
 	// TODO: Save recovery key to local storage
-	w.Write([]byte(recoveryKey))
+	writer.Write([]byte(recoveryKey))
 }
