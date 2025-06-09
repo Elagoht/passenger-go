@@ -3,7 +3,8 @@ package guards
 import (
 	"net/http"
 	"passenger-go/backend/schemas"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/api_error"
+	"passenger-go/backend/utilities/jwtoken"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -13,7 +14,7 @@ func JWTGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			utilities.HandleAPIError(w, schemas.NewAPIError(
+			api_error.HandleAPIError(w, schemas.NewAPIError(
 				schemas.ErrInvalidCredentials,
 				"No authorization token provided",
 				nil,
@@ -23,7 +24,7 @@ func JWTGuard(next http.Handler) http.Handler {
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			utilities.HandleAPIError(w, schemas.NewAPIError(
+			api_error.HandleAPIError(w, schemas.NewAPIError(
 				schemas.ErrInvalidCredentials,
 				"Invalid authorization header format",
 				nil,
@@ -41,11 +42,11 @@ func JWTGuard(next http.Handler) http.Handler {
 					nil,
 				)
 			}
-			return utilities.GetJWTSecret(), nil
+			return jwtoken.GetJWTSecret(), nil
 		})
 
 		if err != nil {
-			utilities.HandleAPIError(w, schemas.NewAPIError(
+			api_error.HandleAPIError(w, schemas.NewAPIError(
 				schemas.ErrInvalidCredentials,
 				"Invalid or expired token",
 				err,
@@ -54,7 +55,7 @@ func JWTGuard(next http.Handler) http.Handler {
 		}
 
 		if !token.Valid {
-			utilities.HandleAPIError(w, schemas.NewAPIError(
+			api_error.HandleAPIError(w, schemas.NewAPIError(
 				schemas.ErrInvalidCredentials,
 				"Invalid token",
 				nil,

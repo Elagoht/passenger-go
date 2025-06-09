@@ -1,4 +1,4 @@
-package utilities
+package pagination
 
 import (
 	"net/http"

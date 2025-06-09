@@ -7,15 +7,15 @@ import (
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/router"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 )
 
 type AuthController struct {
-	publicRouter  *utilities.Router
-	privateRouter *utilities.Router
+	publicRouter  *router.Router
+	privateRouter *router.Router
 	authService   *services.AuthService
 	validator     *validator.Validate
 }
@@ -24,8 +24,8 @@ func NewAuthController() *AuthController {
 	return &AuthController{
 		validator:     pipes.GetValidator(),
 		authService:   services.NewAuthService(),
-		publicRouter:  utilities.NewRouter(chi.NewRouter()),
-		privateRouter: utilities.NewRouter(chi.NewRouter()),
+		publicRouter:  router.NewRouter(chi.NewRouter()),
+		privateRouter: router.NewRouter(chi.NewRouter()),
 	}
 }
 

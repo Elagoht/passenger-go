@@ -22,7 +22,8 @@ import (
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/encrypt"
+	"passenger-go/backend/utilities/jwtoken"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -63,7 +64,7 @@ func (service *AuthService) RegisterUser(passphrase string) (string, error) {
 		)
 	}
 
-	encryptedPassphrase, err := utilities.Encrypt(passphrase)
+	encryptedPassphrase, err := encrypt.Encrypt(passphrase)
 	if err != nil {
 		return "", schemas.NewAPIError(
 			schemas.ErrEncryptionFailed,
@@ -72,7 +73,7 @@ func (service *AuthService) RegisterUser(passphrase string) (string, error) {
 		)
 	}
 
-	recoveryKey, err := utilities.GenerateRecoveryKey(passphrase)
+	recoveryKey, err := encrypt.GenerateRecoveryKey(passphrase)
 
 	if err != nil {
 		return "", schemas.NewAPIError(
@@ -131,7 +132,7 @@ func (service *AuthService) LoginUser(passphrase string) (string, error) {
 		)
 	}
 
-	encryptedPassphrase, err := utilities.Encrypt(passphrase)
+	encryptedPassphrase, err := encrypt.Encrypt(passphrase)
 	if err != nil {
 		return "", schemas.NewAPIError(
 			schemas.ErrEncryptionFailed,
@@ -148,7 +149,7 @@ func (service *AuthService) LoginUser(passphrase string) (string, error) {
 		)
 	}
 
-	token, err := utilities.GenerateJWT(user.Id)
+	token, err := jwtoken.GenerateJWT(user.Id)
 	if err != nil {
 		return "", schemas.NewAPIError(
 			schemas.ErrJWTGenerationFailed,
@@ -175,7 +176,7 @@ func (service *AuthService) UpdatePassphrase(newPassphrase string) error {
 		)
 	}
 
-	encryptedNewPassphrase, err := utilities.Encrypt(newPassphrase)
+	encryptedNewPassphrase, err := encrypt.Encrypt(newPassphrase)
 	if err != nil {
 		return schemas.NewAPIError(
 			schemas.ErrEncryptionFailed,

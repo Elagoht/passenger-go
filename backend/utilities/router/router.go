@@ -5,10 +5,13 @@
  * This must be attached to a chi.Mux.
  */
 
-package utilities
+package router
 
 import (
 	"net/http"
+
+	"passenger-go/backend/utilities/api_error"
+	"passenger-go/backend/utilities/logger"
 
 	"github.com/go-chi/chi"
 )
@@ -30,11 +33,11 @@ type HandlerWithError func(http.ResponseWriter, *http.Request) error
 
 func (r *Router) Handle(method string, pattern string, handler HandlerWithError) {
 	wrappedHandler := func(w http.ResponseWriter, req *http.Request) {
-		logger := GetLogger()
-		logger.Printf("%s %s", req.Method, req.URL.Path)
+		log := logger.GetLogger()
+		log.Printf("%s %s", req.Method, req.URL.Path)
 
 		if err := handler(w, req); err != nil {
-			HandleAPIError(w, err)
+			api_error.HandleAPIError(w, err)
 			return
 		}
 	}

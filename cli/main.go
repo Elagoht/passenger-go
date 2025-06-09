@@ -6,13 +6,13 @@ import (
 
 	"passenger-go/backend"
 	"passenger-go/backend/middlewares"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/logger"
 
 	"github.com/go-chi/chi"
 )
 
 func main() {
-	logger := utilities.GetLogger()
+	log := logger.GetLogger()
 
 	router := chi.NewRouter()
 
@@ -26,8 +26,8 @@ func main() {
 		port = "8080"
 	}
 
-	logger.Printf("Server starting on port %s", port)
+	log.Printf("Server starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, router); err != nil {
-		logger.Fatalf("Server failed to start: %v", err)
+		log.Fatalf("Server failed to start: %v", err)
 	}
 }

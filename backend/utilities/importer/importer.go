@@ -4,7 +4,7 @@ import (
 	"encoding/csv"
 	"io"
 	"passenger-go/backend/schemas"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/url"
 )
 
 type fieldTransformer func(string) string
@@ -41,7 +41,7 @@ var (
 				"url":        "url",
 			},
 			TransformFields: map[string]fieldTransformer{
-				"platform": utilities.ConvertURLToPlatformName,
+				"platform": url.ConvertURLToPlatformName,
 			},
 		},
 		PlatformChromium: {

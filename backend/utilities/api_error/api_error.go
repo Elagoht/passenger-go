@@ -1,10 +1,11 @@
-package utilities
+package api_error
 
 import (
 	"net/http"
 	"os"
 	"passenger-go/backend/errors"
 	"passenger-go/backend/schemas"
+	"passenger-go/backend/utilities/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -17,19 +18,21 @@ func init() {
 	isDev = os.Getenv("MODE") == "development"
 }
 
+var log = logger.GetLogger()
+
 func HandleAPIError(writer http.ResponseWriter, err error) {
 	apiError, ok := err.(*schemas.APIError)
 
 	if err != nil {
 		if isDev {
 			if ok {
-				logger.Printf("API Error Code: %v", apiError.Code)
-				logger.Printf("API Error Message: %v", apiError.Message)
+				log.Printf("API Error Code: %v", apiError.Code)
+				log.Printf("API Error Message: %v", apiError.Message)
 				if apiError.Stack != nil {
-					logger.Printf("API Error Stack: %v", apiError.Stack.Error())
+					log.Printf("API Error Stack: %v", apiError.Stack.Error())
 				}
 			} else {
-				logger.Printf("API Error: %v", err)
+				log.Printf("API Error: %v", err)
 			}
 		}
 

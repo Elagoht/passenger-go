@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"passenger-go/backend/models"
 	"passenger-go/backend/schemas"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/database"
 )
 
 type AuthRepository struct {
@@ -12,7 +12,7 @@ type AuthRepository struct {
 }
 
 func NewAuthRepository() *AuthRepository {
-	return &AuthRepository{database: utilities.GetDB()}
+	return &AuthRepository{database: database.GetDB()}
 }
 
 func (repository *AuthRepository) GetUserCount() (int, error) {

@@ -7,7 +7,8 @@ import (
 	"passenger-go/backend/pipes"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/pagination"
+	"passenger-go/backend/utilities/router"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
@@ -16,14 +17,14 @@ import (
 type AccountsController struct {
 	validator      *validator.Validate
 	service        *services.AccountsService
-	accountsRouter *utilities.Router
+	accountsRouter *router.Router
 }
 
 func NewAccountsController() *AccountsController {
 	return &AccountsController{
 		validator:      pipes.GetValidator(),
 		service:        services.NewAccountsService(),
-		accountsRouter: utilities.NewRouter(chi.NewRouter()),
+		accountsRouter: router.NewRouter(chi.NewRouter()),
 	}
 }
 
@@ -109,7 +110,7 @@ func (controller *AccountsController) GetAccountCards(
 	writer http.ResponseWriter,
 	request *http.Request,
 ) error {
-	pagination, err := utilities.PaginationParams(request)
+	pagination, err := pagination.PaginationParams(request)
 	if err != nil {
 		return err
 	}

@@ -1,4 +1,4 @@
-package utilities
+package encrypt
 
 import (
 	"crypto/aes"
@@ -9,38 +9,24 @@ import (
 	"errors"
 	"io"
 	"os"
-	"sync"
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/pbkdf2"
 )
 
-var (
-	aesGCMSecret []byte
-	aesOnce      sync.Once
-)
+var aesGCMSecret []byte
 
-func initAESGCM() error {
+func getAESGCMSecret() ([]byte, error) {
 	secret := os.Getenv("AES_GCM_SECRET")
 	if secret == "" {
-		return errors.New("AES_GCM_SECRET environment variable is not set")
+		return nil, errors.New("AES_GCM_SECRET environment variable is not set")
 	}
 	aesGCMSecret = []byte(secret)
 
 	if len(aesGCMSecret) < 32 {
-		return errors.New("AES_GCM_SECRET must be at least 32 bytes long")
+		return nil, errors.New("AES_GCM_SECRET must be at least 32 bytes long")
 	}
-	return nil
-}
 
-func getAESGCMSecret() ([]byte, error) {
-	var initErr error
-	aesOnce.Do(func() {
-		initErr = initAESGCM()
-	})
-	if initErr != nil {
-		return nil, initErr
-	}
 	return aesGCMSecret, nil
 }
 

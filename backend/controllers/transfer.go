@@ -4,25 +4,26 @@ import (
 	"encoding/json"
 	"net/http"
 	"passenger-go/backend/guards"
+	"passenger-go/backend/pipes"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
-	"passenger-go/backend/utilities"
 	"passenger-go/backend/utilities/importer"
+	"passenger-go/backend/utilities/router"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 )
 
 type TransferController struct {
-	transferRouter *utilities.Router
+	transferRouter *router.Router
 	validator      *validator.Validate
 	service        *services.TransferService
 }
 
 func NewTransferController() *TransferController {
 	return &TransferController{
-		transferRouter: utilities.NewRouter(chi.NewRouter()),
-		validator:      validator.New(),
+		transferRouter: router.NewRouter(chi.NewRouter()),
+		validator:      pipes.GetValidator(),
 		service:        services.NewTransferService(),
 	}
 }

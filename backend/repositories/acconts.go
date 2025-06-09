@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"passenger-go/backend/schemas"
-	"passenger-go/backend/utilities"
+	"passenger-go/backend/utilities/database"
 	"strings"
 )
 
@@ -13,7 +13,7 @@ type AccountsRepository struct {
 }
 
 func NewAccountsRepository() *AccountsRepository {
-	return &AccountsRepository{database: utilities.GetDB()}
+	return &AccountsRepository{database: database.GetDB()}
 }
 
 func (repository *AccountsRepository) CreateAccount(

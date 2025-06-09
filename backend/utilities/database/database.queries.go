@@ -1,4 +1,4 @@
-package utilities
+package database
 
 const (
 	QueryCreateUserTable string = /* A single user table */ `
