@@ -75,7 +75,9 @@ func (controller *FrontendController) formRegister(
 		return
 	}
 
-	controller.template.Render(writer, "auth", "validate", map[string]string{"Recovery": recovery})
+	controller.template.Render(writer, "auth", "validate", map[string]string{
+		"Recovery": recovery,
+	})
 }
 
 func (controller *FrontendController) formCheck(
@@ -99,10 +101,15 @@ func (controller *FrontendController) formComplete(
 				http.Redirect(writer, request, "/login", http.StatusFound)
 				return
 			} else {
-				controller.template.Render(writer, "auth", "complete", map[string]string{"Error": apiError.Message, "Recovery": recovery})
+				controller.template.Render(writer, "auth", "complete", map[string]string{
+					"Error":    apiError.Message,
+					"Recovery": recovery,
+				})
 			}
 		} else {
-			controller.template.Render(writer, "auth", "complete", map[string]string{"Error": err.Error()})
+			controller.template.Render(writer, "auth", "complete", map[string]string{
+				"Error": err.Error(),
+			})
 		}
 		return
 	}
