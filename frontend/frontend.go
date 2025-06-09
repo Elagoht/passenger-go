@@ -64,7 +64,6 @@ func (controller *FrontendController) formRegister(
 
 	if formError != "" {
 		controller.template.Render(writer, "auth", "register", map[string]string{
-			"Page":  "register",
 			"Error": formError,
 		})
 		return
