@@ -12,16 +12,18 @@ import (
 )
 
 type FrontendController struct {
-	template    *template.TemplateManager
-	router      *chi.Mux
-	authService *services.AuthService
+	template        *template.TemplateManager
+	router          *chi.Mux
+	authService     *services.AuthService
+	accountsService *services.AccountsService
 }
 
 func NewFrontendController() (*FrontendController, error) {
 	return &FrontendController{
-		template:    template.NewTemplateManager(),
-		router:      chi.NewRouter(),
-		authService: services.NewAuthService(),
+		template:        template.NewTemplateManager(),
+		router:          chi.NewRouter(),
+		authService:     services.NewAuthService(),
+		accountsService: services.NewAccountsService(),
 	}, nil
 }
 
@@ -51,7 +53,15 @@ func (controller *FrontendController) routeApp(
 	writer http.ResponseWriter,
 	request *http.Request,
 ) {
-	controller.template.Render(writer, "app", "main", nil)
+	accounts, err := controller.accountsService.GetAccounts()
+	if err != nil {
+		accounts = []*schemas.ResponseAccount{}
+	}
+
+	controller.template.Render(writer, "app", "main", map[string]any{
+		"Accounts": accounts,
+		"Token":    request.CookiesNamed("token")[0].Value,
+	})
 }
 
 func (controller *FrontendController) routeLogin(

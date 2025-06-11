@@ -1,0 +1,60 @@
+main {
+  max-width: 48rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: var(--canvas-bg);
+  color: var(--canvas-text);
+  font-size: 1rem;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0
+    color-mix(in srgb, var(--canvas-text) 10%, transparent 90%);
+}
+
+th,
+td {
+  padding: 0.125rem;
+  text-align: left;
+  border-bottom: 1px solid var(--button-border);
+}
+
+th {
+  background-color: var(--field-bg);
+  color: var(--field-text);
+  font-weight: 600;
+  border-bottom: 2px solid var(--button-border);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background-color: var(--highlight-bg);
+  color: var(--highlight-text);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+td[colspan] {
+  text-align: center;
+}
+
+button {
+  width: 100%;
+}

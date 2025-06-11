@@ -2,32 +2,127 @@
 {{ template "app" . }}{{ end }}
 {{ define "page" }}
 <form onsubmit="return false;">
-  <input placeholder="Search" type="search" />
+  <input placeholder="Search" type="search" oninput="searchAccounts(this.value)" />
 </form>
 
 <table>
   <thead>
     <tr>
       <th>Platform</th>
-      <th>Identity</th>
+      <th>Identifier</th>
       <th>Passphrase</th>
     </tr>
   </thead>
 
   <tbody>
-    {{ range .Accounts }}
-    <tr>
-      <td>{{ .Platform }}</td>
-      <td>{{ .Identity }}</td>
-      <td><button type="button" onclick="copyPassphrase('{{ .Passphrase }}')">Copy</button></td>
-    </tr>
-    {{ end }}
-
-    {{ if not .Accounts }}
-    <tr>
-      <td colspan="3">No accounts found</td>
-    </tr>
-    {{ end }}
   </tbody>
 </table>
+{{ end }}
+{{ define "script" }}
+<script>
+  const accounts = {{ .Accounts }};
+
+  function searchAccounts(query) {
+    const filteredAccounts = accounts.filter(account =>
+      account.platform.toLowerCase().includes(query.toLowerCase()) ||
+      account.identifier.toLowerCase().includes(query.toLowerCase()) ||
+      account.notes.toLowerCase().includes(query.toLowerCase())
+    );
+    renderAccounts(filteredAccounts);
+  }
+
+  function renderAccounts(accounts) {
+    const tbody = document.querySelector('tbody');
+    tbody.innerHTML = '';
+    for (const account of accounts) {
+      const row = document.createElement('tr');
+
+      const platformCell = document.createElement('td');
+      platformCell.textContent = account.platform;
+      row.appendChild(platformCell);
+
+      const identifierCell = document.createElement('td');
+      const identifierButton = document.createElement('button');
+      identifierButton.type = 'button';
+      identifierButton.textContent = account.identifier;
+      identifierButton.addEventListener('click', function() {
+        copyText(account.identifier);
+      });
+      identifierCell.appendChild(identifierButton);
+      row.appendChild(identifierCell);
+
+      const passphraseCell = document.createElement('td');
+      const passphraseButton = document.createElement('button');
+      passphraseButton.type = 'button';
+      passphraseButton.textContent = 'Copy';
+      passphraseButton.addEventListener('click', function() {
+        copyPassphrase(account.id);
+      });
+      passphraseCell.appendChild(passphraseButton);
+      row.appendChild(passphraseCell);
+
+      tbody.appendChild(row);
+    }
+  }
+
+  renderAccounts(accounts);
+
+  // Simple LRU Cache implementation
+  class LRUCache {
+    constructor(limit = 10) {
+      this.limit = limit;
+      this.cache = new Map();
+    }
+    get(key) {
+      if (!this.cache.has(key)) return undefined;
+      const value = this.cache.get(key);
+      // Move to end to show that it was recently used
+      this.cache.delete(key);
+      this.cache.set(key, value);
+      return value;
+    }
+    set(key, value) {
+      if (this.cache.has(key)) {
+        this.cache.delete(key);
+      } else if (this.cache.size >= this.limit) {
+        // Remove least recently used
+        const firstKey = this.cache.keys().next().value;
+        this.cache.delete(firstKey);
+      }
+      this.cache.set(key, value);
+    }
+  }
+
+  const passphraseCache = new LRUCache(10);
+
+  function copyPassphrase(id) {
+    const cached = passphraseCache.get(id);
+    if (cached !== undefined) {
+      copyText(cached);
+      return;
+    }
+    fetch(`/api/accounts/${id}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer {{ .Token }}`,
+      },
+    })
+    .then(response => response.json())
+    .then(data => {
+      passphraseCache.set(id, data);
+      copyText(data);
+    });
+  }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text).catch(error => {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    });
+  }
+</script>
 {{ end }}

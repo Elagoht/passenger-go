@@ -30,7 +30,7 @@ func main() {
 	apiRouter := chi.NewRouter()
 	apiRouter.Use(middlewares.SetAPIContentTypeJSON)
 	apiRouter = backend.MountBackend(apiRouter)
-	router.Mount("/api", apiRouter)
+	router.Mount("/", apiRouter)
 
 	// Start the server
 	port := os.Getenv("PORT")

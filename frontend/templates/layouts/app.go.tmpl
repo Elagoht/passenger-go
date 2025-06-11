@@ -1,4 +1,7 @@
 {{ define "app" }}
 {{ template "base" . }}{{ end }}
+{{ define "head" }}
+<link rel="stylesheet" href="/static/css/app.css" />
+{{ end }}
 {{ define "title" }}Passenger Passphrase Manager{{ end }}
 {{ define "content" }}{{ template "page" . }}{{ end }}
