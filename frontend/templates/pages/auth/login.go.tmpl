@@ -1,0 +1,21 @@
+{{ define "login" }}
+{{ template "auth" . }}{{ end }}
+{{ define "title" }}Login - Passenger{{ end }}
+{{ define "page" }}
+<form action="/login" method="post">
+  <strong>
+    Unlock your vault
+  </strong>
+
+  <label>
+    <span>Passphrase</span>
+    <input type="password" name="passphrase" />
+  </label>
+
+  {{ if .Error }}
+  <small>{{ .Error }}</small>
+  {{ end }}
+
+  <button type="submit">Unlock</button>
+</form>
+{{ end }}

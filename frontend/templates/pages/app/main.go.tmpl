@@ -1,0 +1,33 @@
+{{ define "main" }}
+{{ template "app" . }}{{ end }}
+{{ define "page" }}
+<form onsubmit="return false;">
+  <input placeholder="Search" type="search" />
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Identity</th>
+      <th>Passphrase</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {{ range .Accounts }}
+    <tr>
+      <td>{{ .Platform }}</td>
+      <td>{{ .Identity }}</td>
+      <td><button type="button" onclick="copyPassphrase('{{ .Passphrase }}')">Copy</button></td>
+    </tr>
+    {{ end }}
+
+    {{ if not .Accounts }}
+    <tr>
+      <td colspan="3">No accounts found</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+{{ end }}

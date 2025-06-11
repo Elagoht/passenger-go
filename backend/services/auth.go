@@ -132,16 +132,18 @@ func (service *AuthService) LoginUser(passphrase string) (string, error) {
 		)
 	}
 
-	encryptedPassphrase, err := encrypt.Encrypt(passphrase)
+	// Decrypt the stored passphrase
+	storedPassphrase, err := encrypt.Decrypt(user.Passphrase)
 	if err != nil {
 		return "", schemas.NewAPIError(
-			schemas.ErrEncryptionFailed,
-			"Couldn't encrypt passphrase",
+			schemas.ErrDecryptionFailed,
+			"Couldn't decrypt stored passphrase",
 			err,
 		)
 	}
 
-	if user.Passphrase != encryptedPassphrase {
+	// Compare the decrypted stored passphrase with the provided one
+	if storedPassphrase != passphrase {
 		return "", schemas.NewAPIError(
 			schemas.ErrInvalidCredentials,
 			"Invalid credentials",

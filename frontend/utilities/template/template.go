@@ -36,7 +36,7 @@ func (templateManager *TemplateManager) init(root string) error {
 			return nil
 		}
 
-		relPath, _ := filepath.Rel(pagesRoot, path) // auth/register.go.tmpl
+		relPath, _ := filepath.Rel(pagesRoot, path)
 		parts := strings.Split(relPath, string(os.PathSeparator))
 		if len(parts) < 2 {
 			return nil

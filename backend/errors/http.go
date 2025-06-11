@@ -16,6 +16,7 @@ var httpErrorMapping = map[schemas.APIErrorCode]int{
 	schemas.ErrAnotherAccountFound:      409,
 	schemas.ErrUnprocessableEntity:      422,
 	schemas.ErrEncryptionFailed:         500,
+	schemas.ErrDecryptionFailed:         500,
 	schemas.ErrRecoveryGenerationFailed: 500,
 	schemas.ErrJWTGenerationFailed:      500,
 	schemas.ErrUnexpected:               500,

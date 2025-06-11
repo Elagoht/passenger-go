@@ -24,6 +24,7 @@ const (
 	ErrAlreadyInitialized       APIErrorCode = "ALREADY_INITIALIZED"
 	ErrNotInitializedYet        APIErrorCode = "NOT_INITIALIZED_YET"
 	ErrEncryptionFailed         APIErrorCode = "ENCRYPTION_FAILED"
+	ErrDecryptionFailed         APIErrorCode = "DECRYPTION_FAILED"
 	ErrRecoveryGenerationFailed APIErrorCode = "RECOVERY_KEY_GENERATION_FAILED"
 	ErrInvalidCredentials       APIErrorCode = "INVALID_CREDENTIALS"
 	ErrJWTGenerationFailed      APIErrorCode = "JWT_GENERATION_FAILED"
