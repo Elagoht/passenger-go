@@ -38,7 +38,10 @@
       const row = document.createElement('tr');
 
       const platformCell = document.createElement('td');
-      platformCell.textContent = account.platform;
+      const platformLink = document.createElement('a');
+      platformLink.href = `/accounts/${account.id}`;
+      platformLink.textContent = account.platform;
+      platformCell.appendChild(platformLink);
       row.appendChild(platformCell);
 
       const identifierCell = document.createElement('td');
