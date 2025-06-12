@@ -38,19 +38,18 @@
       const row = document.createElement('tr');
 
       const platformCell = document.createElement('td');
-      const platformLink = document.createElement('a');
-      platformLink.href = `/accounts/${account.id}`;
-      platformLink.textContent = account.platform;
-      platformCell.appendChild(platformLink);
+      const platformButton = document.createElement('button');
+      platformButton.type = 'button';
+      platformButton.textContent = account.platform;
+      platformButton.addEventListener('click', () => window.location.href = `/accounts/${account.id}`);
+      platformCell.appendChild(platformButton);
       row.appendChild(platformCell);
 
       const identifierCell = document.createElement('td');
       const identifierButton = document.createElement('button');
       identifierButton.type = 'button';
       identifierButton.textContent = account.identifier;
-      identifierButton.addEventListener('click', function() {
-        copyText(account.identifier);
-      });
+      identifierButton.addEventListener('click', () => copyText(account.identifier));
       identifierCell.appendChild(identifierButton);
       row.appendChild(identifierCell);
 
@@ -104,12 +103,7 @@
       copyText(cached);
       return;
     }
-    fetch(`/api/accounts/${id}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer {{ .Token }}`,
-      },
-    })
+    fetch(`/api/accounts/${id}`, { credentials: 'include' })
     .then(response => response.json())
     .then(data => {
       passphraseCache.set(id, data);
