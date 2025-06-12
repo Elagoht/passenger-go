@@ -1,18 +1,23 @@
 package services
 
 import (
+	"passenger-go/backend/pipes"
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities/encrypt"
+
+	"github.com/go-playground/validator/v10"
 )
 
 type AccountsService struct {
 	repository *repositories.AccountsRepository
+	validator  *validator.Validate
 }
 
 func NewAccountsService() *AccountsService {
 	return &AccountsService{
 		repository: repositories.NewAccountsRepository(),
+		validator:  pipes.GetValidator(),
 	}
 }
 
@@ -25,18 +30,32 @@ func (service *AccountsService) GetAccounts() ([]*schemas.ResponseAccount, error
 	return accounts, nil
 }
 
-func (service *AccountsService) GetPassphrase(id string) (string, error) {
+func (service *AccountsService) GetAccount(
+	id string,
+) (*schemas.ResponseAccountDetails, error) {
+	account, err := service.repository.GetAccount(id)
+	if err != nil {
+		return nil, err
+	}
+
+	decryptedPassphrase, err := service.GetPassphrase(id)
+	if err != nil {
+		return nil, err
+	}
+	account.Passphrase = decryptedPassphrase
+
+	return account, nil
+}
+
+func (service *AccountsService) GetPassphrase(
+	id string,
+) (string, error) {
 	passphrase, err := service.repository.GetPassphrase(id)
 	if err != nil {
 		return "", err
 	}
 
-	decryptedPassphrase, err := encrypt.Decrypt(passphrase)
-	if err != nil {
-		return "", err
-	}
-
-	return decryptedPassphrase, nil
+	return encrypt.Decrypt(passphrase)
 }
 
 func (service *AccountsService) CreateAccount(
@@ -47,18 +66,18 @@ func (service *AccountsService) CreateAccount(
 		return nil, err
 	}
 
-	account, err := service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
+	err = service.validator.Struct(body)
+	if err != nil {
+		return nil, err
+	}
+
+	return service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
 		Platform:   body.Platform,
 		Identifier: body.Identifier,
 		Passphrase: encryptedPassphrase,
 		Url:        body.Url,
 		Notes:      body.Notes,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return account, nil
 }
 
 func (service *AccountsService) UpdateAccount(
@@ -70,26 +89,22 @@ func (service *AccountsService) UpdateAccount(
 		return err
 	}
 
-	err = service.repository.UpdateAccount(id, &schemas.RequestAccountsUpsert{
+	err = service.validator.Struct(body)
+	if err != nil {
+		return err
+	}
+
+	return service.repository.UpdateAccount(id, &schemas.RequestAccountsUpsert{
 		Platform:   body.Platform,
 		Identifier: body.Identifier,
 		Passphrase: encryptedPassphrase,
 		Url:        body.Url,
 		Notes:      body.Notes,
 	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
-func (service *AccountsService) DeleteAccount(id string) error {
-	err := service.repository.DeleteAccount(id)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (service *AccountsService) DeleteAccount(
+	id string,
+) error {
+	return service.repository.DeleteAccount(id)
 }
