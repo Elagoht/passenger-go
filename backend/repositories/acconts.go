@@ -49,6 +49,29 @@ func (repository *AccountsRepository) GetAccounts() ([]*schemas.ResponseAccount,
 	return accounts, nil
 }
 
+func (repository *AccountsRepository) GetAccount(id string) (*schemas.ResponseAccountDetails, error) {
+	statement, err := repository.database.Prepare(QueryAccountDetails)
+	if err != nil {
+		return nil, err
+	}
+
+	var account schemas.ResponseAccountDetails
+	err = statement.QueryRow(id).Scan(
+		&account.Id,
+		&account.Platform,
+		&account.Identifier,
+		&account.Url,
+		&account.Passphrase,
+		&account.Notes,
+		&account.Strength,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &account, nil
+}
+
 func (repository *AccountsRepository) GetPassphrase(id string) (string, error) {
 	statement, err := repository.database.Prepare(QueryAccountPassphrase)
 	if err != nil {

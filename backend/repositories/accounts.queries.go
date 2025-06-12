@@ -9,6 +9,11 @@ const (
 	SELECT id, platform, identifier, url, notes, strength
 	FROM accounts
 	`
+	QueryAccountDetails = `
+	SELECT id, platform, identifier, url, passphrase, notes, strength
+	FROM accounts
+	WHERE id = ?
+	`
 	QueryAccountPassphrase = `
 	SELECT passphrase
 	FROM accounts

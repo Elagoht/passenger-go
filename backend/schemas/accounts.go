@@ -20,3 +20,13 @@ type ResponseAccount struct {
 	Notes      string `json:"notes"`
 	Strength   int    `json:"strength"`
 }
+
+type ResponseAccountDetails struct {
+	Id         string `json:"id"`
+	Platform   string `json:"platform"`
+	Identifier string `json:"identifier"`
+	Url        string `json:"url"`
+	Passphrase string `json:"passphrase"`
+	Notes      string `json:"notes"`
+	Strength   int    `json:"strength"`
+}

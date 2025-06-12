@@ -32,20 +32,27 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 	fileServer := http.FileServer(http.Dir("frontend/static"))
 	router.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
-	// Auth routes
-	router.Get("/login", controller.routeLogin)
-	router.Get("/register", controller.routeRegister)
+	// Public routes
+	router.Group(func(router chi.Router) {
+		router.Use(auth.PublicMiddleware)
 
-	// Form handlers
-	router.Post("/register", controller.formRegister)
-	router.Post("/check", controller.formCheck)
-	router.Post("/complete", controller.formComplete)
-	router.Post("/login", controller.formLogin)
+		router.Get("/login", controller.routeLogin)
+		router.Get("/register", controller.routeRegister)
+
+		router.Post("/register", controller.formRegister)
+		router.Post("/check", controller.formCheck)
+		router.Post("/complete", controller.formComplete)
+		router.Post("/login", controller.formLogin)
+
+	})
 
 	// Protected routes
 	router.Group(func(router chi.Router) {
-		router.Use(auth.Middleware)
+		router.Use(auth.PrivateMiddleware)
 		router.Get("/", controller.routeApp)
+		router.Get("/accounts/{id}", controller.routeAccountDetails)
+
+		router.Post("/accounts/{id}", controller.formAccountDetails)
 	})
 }
 
@@ -61,6 +68,22 @@ func (controller *FrontendController) routeApp(
 	controller.template.Render(writer, "app", "main", map[string]any{
 		"Accounts": accounts,
 		"Token":    request.CookiesNamed("token")[0].Value,
+	})
+}
+
+func (controller *FrontendController) routeAccountDetails(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	id := chi.URLParam(request, "id")
+	account, err := controller.accountsService.GetAccount(id)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	controller.template.Render(writer, "app", "details", map[string]any{
+		"Account": account,
 	})
 }
 
@@ -184,6 +207,32 @@ func (controller *FrontendController) formLogin(
 		Path:   "/",
 		MaxAge: 360,
 	})
+
+	http.Redirect(writer, request, "/", http.StatusFound)
+}
+
+func (controller *FrontendController) formAccountDetails(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	id := chi.URLParam(request, "id")
+	platform := request.FormValue("platform")
+	identifier := request.FormValue("identifier")
+	passphrase := request.FormValue("passphrase")
+	url := request.FormValue("url")
+	notes := request.FormValue("notes")
+
+	err := controller.accountsService.UpdateAccount(id, &schemas.RequestAccountsUpsert{
+		Platform:   platform,
+		Identifier: identifier,
+		Passphrase: passphrase,
+		Url:        url,
+		Notes:      notes,
+	})
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	http.Redirect(writer, request, "/", http.StatusFound)
 }

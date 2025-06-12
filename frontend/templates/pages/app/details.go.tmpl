@@ -1,0 +1,28 @@
+{{ define "details" }}
+{{ template "app" . }}{{ end }}
+{{ define "page" }}
+<h1>Account Details</h1>
+<form action="/accounts/{{ .Account.Id }}" method="post">
+  <label>
+    <span>Platform</span>
+    <input type="text" name="platform" value="{{ .Account.Platform }}" />
+  </label>
+
+  <label>
+    <span>Identifier</span>
+    <input type="text" name="identifier" value="{{ .Account.Identifier }}" />
+  </label>
+
+  <label>
+    <span>Passphrase</span>
+    <input type="text" name="passphrase" value="{{ .Account.Passphrase }}" />
+  </label>
+
+  <label>
+    <span>Notes</span>
+    <textarea name="notes">{{ .Account.Notes }}</textarea>
+  </label>
+
+  <button type="submit">Save</button>
+</form>
+{{ end }}
