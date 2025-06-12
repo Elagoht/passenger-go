@@ -49,7 +49,9 @@ func (repository *AccountsRepository) GetAccounts() ([]*schemas.ResponseAccount,
 	return accounts, nil
 }
 
-func (repository *AccountsRepository) GetAccount(id string) (*schemas.ResponseAccountDetails, error) {
+func (repository *AccountsRepository) GetAccount(
+	id string,
+) (*schemas.ResponseAccountDetails, error) {
 	statement, err := repository.database.Prepare(QueryAccountDetails)
 	if err != nil {
 		return nil, err
@@ -72,7 +74,9 @@ func (repository *AccountsRepository) GetAccount(id string) (*schemas.ResponseAc
 	return &account, nil
 }
 
-func (repository *AccountsRepository) GetPassphrase(id string) (string, error) {
+func (repository *AccountsRepository) GetPassphrase(
+	id string,
+) (string, error) {
 	statement, err := repository.database.Prepare(QueryAccountPassphrase)
 	if err != nil {
 		return "", err
@@ -157,6 +161,7 @@ func (repository *AccountsRepository) UpdateAccount(
 		account.Url,
 		account.Notes,
 		strengthScore,
+		id,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -172,7 +177,9 @@ func (repository *AccountsRepository) UpdateAccount(
 	return nil
 }
 
-func (repository *AccountsRepository) DeleteAccount(id string) error {
+func (repository *AccountsRepository) DeleteAccount(
+	id string,
+) error {
 	statement, err := repository.database.Prepare(QueryAccountDelete)
 	if err != nil {
 		return err

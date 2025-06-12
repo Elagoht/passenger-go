@@ -43,7 +43,6 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Post("/check", controller.formCheck)
 		router.Post("/complete", controller.formComplete)
 		router.Post("/login", controller.formLogin)
-
 	})
 
 	// Protected routes
@@ -51,7 +50,6 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Use(auth.PrivateMiddleware)
 		router.Get("/", controller.routeApp)
 		router.Get("/accounts/{id}", controller.routeAccountDetails)
-
 		router.Post("/accounts/{id}", controller.formAccountDetails)
 	})
 }
@@ -230,7 +228,17 @@ func (controller *FrontendController) formAccountDetails(
 		Notes:      notes,
 	})
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		controller.template.Render(writer, "app", "details", map[string]any{
+			"Error": err.Error(),
+			"Account": &schemas.ResponseAccountDetails{
+				Id:         id,
+				Platform:   platform,
+				Identifier: identifier,
+				Passphrase: passphrase,
+				Url:        url,
+				Notes:      notes,
+			},
+		})
 		return
 	}
 
