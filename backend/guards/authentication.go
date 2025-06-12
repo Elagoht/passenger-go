@@ -5,15 +5,14 @@ import (
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities/api_error"
 	"passenger-go/backend/utilities/jwtoken"
-	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func JWTGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
+		authCookie, err := r.Cookie("token")
+		if err != nil {
 			api_error.HandleAPIError(w, schemas.NewAPIError(
 				schemas.ErrInvalidCredentials,
 				"No authorization token provided",
@@ -22,19 +21,16 @@ func JWTGuard(next http.Handler) http.Handler {
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
+		if authCookie.Value == "" {
 			api_error.HandleAPIError(w, schemas.NewAPIError(
 				schemas.ErrInvalidCredentials,
-				"Invalid authorization header format",
+				"No authorization token provided",
 				nil,
 			))
 			return
 		}
 
-		tokenString := parts[1]
-
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		token, err := jwt.Parse(authCookie.Value, func(token *jwt.Token) (any, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, schemas.NewAPIError(
 					schemas.ErrInvalidCredentials,
