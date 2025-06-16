@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/joho/godotenv"
@@ -46,29 +45,9 @@ func (database *database) connect() error {
 		return nil
 	}
 
-	passphrase := os.Getenv("DB_PASSPHRASE")
-	if passphrase == "" {
-		return fmt.Errorf(
-			"DB_PASSPHRASE environment variable is not set",
-		)
-	}
-
-	connectionString := fmt.Sprintf(
-		"file:passenger.db?_pragma_key=%s&_pragma_cipher_page_size=4096",
-		passphrase,
-	)
-
-	connection, err := sql.Open("sqlite", connectionString)
+	connection, err := sql.Open("sqlite", "file:passenger.db")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// Initialize the database with encryption
-	if _, err := connection.Exec(
-		"PRAGMA cipher_compatibility = 4",
-	); err != nil {
-		connection.Close()
-		return fmt.Errorf("failed to set cipher compatibility: %w", err)
 	}
 
 	// Verify the connection

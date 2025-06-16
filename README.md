@@ -54,7 +54,6 @@ The application will be available at the port you specified in the `.env` file.
 
 Required environment variables:
 
-- `DB_PASSPHRASE`: Master encryption key for the database
 - `JWT_SECRET`: Secret for JWT token generation
 - `AES_GCM_SECRET`: Secret for AES-GCM encryption
 - `SALT`: Salt for password hashing
