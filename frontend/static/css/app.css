@@ -82,17 +82,28 @@ a:hover {
   text-decoration: none;
 }
 
-main > a {
+nav {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+nav a {
   align-self: flex-end;
   display: block;
-  background-color: green;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   color: var(--button-text) !important;
   padding: 0.5rem;
   text-align: center;
+  background-color: var(--button-bg);
 }
 
-main > a:hover {
+nav a:last-child {
+  background-color: green;
+}
+
+nav a:last-child:hover {
   background-color: color-mix(in srgb, green 80%, var(--canvas-bg) 20%);
   color: var(--button-text);
 }
