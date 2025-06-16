@@ -7,7 +7,7 @@ services:
       - "${PORT}:${PORT}"
     volumes:
       - ./.env:/app/.env:ro
-      - ./passenger.db:/app/passenger.db
+      - ./database:/app/database
     environment:
       - SSL_CERT_PATH=/app/certs/server.crt
       - SSL_KEY_PATH=/app/certs/server.key

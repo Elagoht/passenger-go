@@ -45,7 +45,7 @@ func (database *database) connect() error {
 		return nil
 	}
 
-	connection, err := sql.Open("sqlite", "file:passenger.db")
+	connection, err := sql.Open("sqlite", "file:database/passenger.db")
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
