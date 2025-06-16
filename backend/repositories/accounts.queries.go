@@ -34,4 +34,8 @@ const (
 	VALUES (?, ?, ?, ?, ?, ?);
 	COMMIT;
 	`
+	QueryAccountsExport = `
+	SELECT platform, identifier, passphrase, url, notes
+	FROM accounts
+	`
 )

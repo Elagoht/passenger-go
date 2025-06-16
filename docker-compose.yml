@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "443:443"
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./passenger.db:/app/passenger.db
+    environment:
+      - SSL_CERT_PATH=/app/certs/server.crt
+      - SSL_KEY_PATH=/app/certs/server.key
+      - DB_PASSPHRASE=${DB_PASSPHRASE}
+      - JWT_SECRET=${JWT_SECRET}
+      - AES_GCM_SECRET=${AES_GCM_SECRET}
+      - SALT=${SALT}
+      - MODE=development
+    restart: unless-stopped

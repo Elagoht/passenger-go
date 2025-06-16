@@ -49,7 +49,7 @@
 <script>
   function deleteAccount() {
     if (confirm('Are you sure you want to delete this account?')) {
-      fetch(`/api/accounts/{{ .Account.Id }}`, {
+      fetch('/api/accounts/{{ .Account.Id }}', {
         method: 'DELETE',
         credentials: 'include',
       }).then(() => {

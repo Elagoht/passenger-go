@@ -106,5 +106,14 @@ func (controller *TransferController) Export(
 	writer http.ResponseWriter,
 	request *http.Request,
 ) error {
+	csv, err := controller.service.Export()
+	if err != nil {
+		return err
+	}
+
+	writer.Header().Set("Content-Type", "text/csv")
+	writer.Header().Set("Content-Disposition", "attachment; filename=passenger-accounts.csv")
+	writer.Write([]byte(csv))
+
 	return nil
 }

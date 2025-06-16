@@ -1,8 +1,10 @@
 package services
 
 import (
+	"fmt"
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
+	"passenger-go/backend/utilities/encrypt"
 )
 
 type TransferService struct {
@@ -54,6 +56,31 @@ func (service *TransferService) Import(
 	}, nil
 }
 
-func (service *TransferService) Export() error {
-	return nil
+func (service *TransferService) Export() (string, error) {
+	accounts, err := service.repository.ExportAccountsData()
+	if err != nil {
+		return "", err
+	}
+
+	csv := "platform,identifier,passphrase,url,notes\n"
+	for _, account := range accounts {
+		decryptedPassphrase, err := encrypt.Decrypt(account.Passphrase)
+		if err != nil {
+			return "", err
+		}
+		account.Passphrase = decryptedPassphrase
+		csv += convertAccountToCSV(account)
+	}
+
+	return csv, nil
+}
+
+func convertAccountToCSV(account schemas.RequestAccountsUpsert) string {
+	return fmt.Sprintf("%s,%s,%s,%s,%s",
+		account.Platform,
+		account.Identifier,
+		account.Passphrase,
+		account.Url,
+		account.Notes,
+	)
 }

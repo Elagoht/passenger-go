@@ -217,3 +217,34 @@ func (repository *AccountsRepository) DeleteAccount(
 
 	return nil
 }
+
+func (repository *AccountsRepository) ExportAccountsData() ([]schemas.RequestAccountsUpsert, error) {
+	statement, err := repository.database.Prepare(QueryAccountsExport)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := statement.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := []schemas.RequestAccountsUpsert{}
+
+	for rows.Next() {
+		var account schemas.RequestAccountsUpsert
+		err = rows.Scan(
+			&account.Platform,
+			&account.Identifier,
+			&account.Passphrase,
+			&account.Url,
+			&account.Notes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+
+	return accounts, nil
+}

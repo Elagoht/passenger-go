@@ -1,0 +1,40 @@
+{{ define "export" }}
+{{ template "app" . }}{{ end }}
+{{ define "title" }}Export - Passenger{{ end }}
+{{ define "page" }}
+<h2>Export Accounts</h2>
+
+<blockquote class="info">
+  Export your accounts in CSV format for backup or migration purposes
+</blockquote>
+
+{{ if .Error }}
+<blockquote class="error">{{ .Error }}</blockquote>
+{{ end }}
+
+<form onsubmit="exportAccounts(event)">
+  <button type="submit">Export</button>
+</form>
+{{ end }}
+
+{{ define "script" }}
+<script>
+  function exportAccounts(event) {
+    event.preventDefault();
+    fetch('/api/transfer/export', {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then(response => response.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'passenger-accounts.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+      })
+  }
+</script>
+{{ end }}
