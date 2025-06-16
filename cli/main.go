@@ -50,11 +50,16 @@ func main() {
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		},
+		InsecureSkipVerify: true, // Allow self-signed certificates
 	}
 
 	// Create server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	server := &http.Server{
-		Addr:         ":443",
+		Addr:         ":" + port,
 		Handler:      router,
 		TLSConfig:    tlsConfig,
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)), // Disable HTTP/2
@@ -62,15 +67,12 @@ func main() {
 
 	// Start the server
 	if certPath != "" && keyPath != "" {
-		log.Printf("Starting HTTPS server on :443")
+		log.Printf("Starting HTTPS server on port %s", port)
+		log.Printf("Using certificates: %s, %s", certPath, keyPath)
 		if err := server.ListenAndServeTLS(certPath, keyPath); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 		}
 	} else {
-		port := os.Getenv("PORT")
-		if port == "" {
-			port = "8080"
-		}
 		log.Printf("Starting HTTP server on port %s", port)
 		if err := http.ListenAndServe(":"+port, router); err != nil {
 			log.Fatalf("Server failed to start: %v", err)

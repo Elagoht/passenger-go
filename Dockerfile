@@ -30,15 +30,15 @@ COPY start.sh .
 # Make startup script executable
 RUN chmod +x start.sh
 
-# Copy .env file
-COPY --from=builder /app/.env .
+# Copy .env file if it exists
+COPY --from=builder /app/.env* ./
 
 # Copy frontend files
 COPY --from=builder /app/frontend/templates /app/frontend/templates
 COPY --from=builder /app/frontend/static /app/frontend/static
 
-# Expose HTTPS port
-EXPOSE 443
+# Create directory for certificates
+RUN mkdir -p /app/certs
 
 # Run the startup script
 CMD ["./start.sh"]

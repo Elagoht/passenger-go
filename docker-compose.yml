@@ -4,7 +4,7 @@ services:
   app:
     build: .
     ports:
-      - "443:443"
+      - "${PORT}:${PORT}"
     volumes:
       - ./.env:/app/.env:ro
       - ./passenger.db:/app/passenger.db
@@ -15,5 +15,5 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - AES_GCM_SECRET=${AES_GCM_SECRET}
       - SALT=${SALT}
-      - MODE=development
+      - PORT=${PORT}
     restart: unless-stopped
