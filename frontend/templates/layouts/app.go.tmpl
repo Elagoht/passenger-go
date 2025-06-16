@@ -4,4 +4,14 @@
 <link rel="stylesheet" href="/static/css/app.css" />
 {{ end }}
 {{ define "title" }}Passenger Passphrase Manager{{ end }}
-{{ define "content" }}{{ template "page" . }}{{ end }}
+{{ define "content" }}
+<header>
+  <a href="/">
+    <figure>
+      <img src="/static/img/passenger.png" width="64" height="64" alt="Passenger Passphrase Manager" />
+    </figure>
+
+    <h1>Passenger</h1>
+  </a>
+</header>
+{{ template "page" . }}{{ end }}

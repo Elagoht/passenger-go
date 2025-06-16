@@ -7,6 +7,19 @@ main {
   padding: 1rem;
 }
 
+header a {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 1rem;
+  gap: 1rem;
+  font-size: 0.875rem;
+  background-color: var(--canvas-bg);
+  color: var(--button-text) !important;
+  text-decoration: none;
+}
+
 form {
   display: flex;
   flex-direction: column;
