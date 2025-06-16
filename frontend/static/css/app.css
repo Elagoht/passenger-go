@@ -67,3 +67,22 @@ a {
 a:hover {
   text-decoration: none;
 }
+
+main > a {
+  align-self: flex-end;
+  display: block;
+  background-color: var(--button-bg);
+  border-radius: 8px;
+  color: var(--button-text) !important;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+main > a:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--button-bg) 90%,
+    var(--canvas-bg) 10%
+  );
+  color: var(--button-text);
+}
