@@ -99,14 +99,15 @@ func (repository *AccountsRepository) GetPassphrase(
 }
 
 func (repository *AccountsRepository) CreateAccount(
-	account *schemas.RequestAccountsUpsert,
-) (*schemas.ResponseAccountsCreate, error) {
+	account *schemas.ResponseAccountDetails,
+	passphrase string,
+) (*schemas.ResponseAccountDetails, error) {
 	statement, err := repository.database.Prepare(QueryAccountCreate)
 	if err != nil {
 		return nil, err
 	}
 
-	strengthScore, err := strength.CalculateStrength(account.Passphrase)
+	strengthScore, err := strength.CalculateStrength(passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +115,7 @@ func (repository *AccountsRepository) CreateAccount(
 	result, err := statement.Exec(
 		account.Platform,
 		account.Identifier,
-		account.Passphrase,
+		passphrase,
 		account.Url,
 		account.Notes,
 		strengthScore,
@@ -135,8 +136,14 @@ func (repository *AccountsRepository) CreateAccount(
 		return nil, err
 	}
 
-	return &schemas.ResponseAccountsCreate{
-		Id: strconv.FormatInt(lastInsertedId, 10),
+	return &schemas.ResponseAccountDetails{
+		Id:         strconv.FormatInt(lastInsertedId, 10),
+		Platform:   account.Platform,
+		Identifier: account.Identifier,
+		Passphrase: passphrase,
+		Url:        account.Url,
+		Notes:      account.Notes,
+		Strength:   strengthScore,
 	}, nil
 }
 

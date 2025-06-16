@@ -83,3 +83,22 @@ main > a:hover {
   background-color: color-mix(in srgb, green 80%, var(--canvas-bg) 20%);
   color: var(--button-text);
 }
+
+blockquote {
+  color: var(--button-text);
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  margin: 0;
+}
+
+.success {
+  background-color: color-mix(in srgb, green 70%, var(--canvas-bg) 30%);
+  border-left: 0.25rem solid green;
+  color: var(--button-text);
+}
+
+.error {
+  background-color: color-mix(in srgb, red 60%, var(--canvas-bg) 40%);
+  border-left: 0.25rem solid red;
+  color: var(--button-text);
+}

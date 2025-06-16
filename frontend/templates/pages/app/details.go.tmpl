@@ -3,6 +3,14 @@
 {{ define "page" }}
 <h1>Account Details</h1>
 
+{{ if .Message }}
+<blockquote class="success">{{ .Message }}</blockquote>
+{{ end }}
+
+{{ if .Error }}
+<blockquote class="error">{{ .Error }}</blockquote>
+{{ end }}
+
 <form action="/accounts/{{ .Account.Id }}" method="post">
   <label>
     <span>Platform</span>
@@ -28,10 +36,6 @@
     <span>Notes</span>
     <textarea name="notes">{{ .Account.Notes }}</textarea>
   </label>
-
-  {{ if .Error }}
-    <small>{{ .Error }}</small>
-  {{ end }}
 
   <button type="submit">Save</button>
 </form>

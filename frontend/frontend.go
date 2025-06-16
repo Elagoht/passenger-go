@@ -1,7 +1,6 @@
 package frontend
 
 import (
-	"fmt"
 	"net/http"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
@@ -281,5 +280,8 @@ func (controller *FrontendController) formAccountCreate(
 		return
 	}
 
-	http.Redirect(writer, request, fmt.Sprintf("/accounts/%s", account.Id), http.StatusFound)
+	controller.template.Render(writer, "app", "details", map[string]any{
+		"Account": account,
+		"Message": "Account created successfully",
+	})
 }

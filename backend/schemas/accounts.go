@@ -1,9 +1,5 @@
 package schemas
 
-type ResponseAccountsCreate struct {
-	Id string `json:"id"`
-}
-
 type RequestAccountsUpsert struct {
 	Platform   string `json:"platform" validate:"required"`
 	Identifier string `json:"identifier" validate:"required"`

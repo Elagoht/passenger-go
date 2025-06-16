@@ -3,6 +3,10 @@
 {{ define "page" }}
 <h1>New Account</h1>
 
+{{ if .Error }}
+<blockquote class="error">{{ .Error }}</blockquote>
+{{ end }}
+
 <form action="/create" method="post">
   <label>
     <span>Platform</span>
@@ -28,10 +32,6 @@
     <span>Notes</span>
     <textarea name="notes">{{ .Account.Notes }}</textarea>
   </label>
-
-  {{ if .Error }}
-    <small>{{ .Error }}</small>
-  {{ end }}
 
   <button type="submit">Create</button>
 </form>
