@@ -102,3 +102,13 @@ blockquote {
   border-left: 0.25rem solid red;
   color: var(--button-text);
 }
+
+button.danger {
+  background-color: color-mix(in srgb, red 60%, var(--canvas-bg) 40%);
+  color: var(--button-text) !important;
+  border-color: color-mix(in srgb, red 80%, var(--canvas-bg) 20%);
+}
+
+button.danger:hover {
+  background-color: color-mix(in srgb, red 80%, var(--canvas-bg) 20%);
+}

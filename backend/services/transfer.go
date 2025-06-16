@@ -27,13 +27,13 @@ func (service *TransferService) Import(
 	failedOnes := []schemas.RequestAccountsUpsert{}
 
 	for _, account := range accounts {
-		_, err := service.repository.CreateAccount(&schemas.ResponseAccountDetails{
+		_, err := service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
 			Platform:   account.Platform,
 			Identifier: account.Identifier,
 			Passphrase: account.Passphrase,
 			Url:        account.Url,
 			Notes:      account.Notes,
-		}, account.Passphrase)
+		})
 		if err != nil {
 			failedOnes = append(failedOnes, account)
 			continue

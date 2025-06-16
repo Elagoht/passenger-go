@@ -61,23 +61,18 @@ func (service *AccountsService) GetPassphrase(
 func (service *AccountsService) CreateAccount(
 	body *schemas.RequestAccountsUpsert,
 ) (*schemas.ResponseAccountDetails, error) {
-	encryptedPassphrase, err := encrypt.Encrypt(body.Passphrase)
+	err := service.validator.Struct(body)
 	if err != nil {
 		return nil, err
 	}
 
-	err = service.validator.Struct(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return service.repository.CreateAccount(&schemas.ResponseAccountDetails{
+	return service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
 		Platform:   body.Platform,
 		Identifier: body.Identifier,
-		Passphrase: encryptedPassphrase,
+		Passphrase: body.Passphrase,
 		Url:        body.Url,
 		Notes:      body.Notes,
-	}, body.Passphrase)
+	})
 }
 
 func (service *AccountsService) UpdateAccount(

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities/database"
+	"passenger-go/backend/utilities/encrypt"
 	"passenger-go/backend/utilities/strength"
 	"strconv"
 	"strings"
@@ -99,15 +100,19 @@ func (repository *AccountsRepository) GetPassphrase(
 }
 
 func (repository *AccountsRepository) CreateAccount(
-	account *schemas.ResponseAccountDetails,
-	passphrase string,
+	account *schemas.RequestAccountsUpsert,
 ) (*schemas.ResponseAccountDetails, error) {
 	statement, err := repository.database.Prepare(QueryAccountCreate)
 	if err != nil {
 		return nil, err
 	}
 
-	strengthScore, err := strength.CalculateStrength(passphrase)
+	strengthScore, err := strength.CalculateStrength(account.Passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	encryptedPassphrase, err := encrypt.Encrypt(account.Passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +120,7 @@ func (repository *AccountsRepository) CreateAccount(
 	result, err := statement.Exec(
 		account.Platform,
 		account.Identifier,
-		passphrase,
+		encryptedPassphrase,
 		account.Url,
 		account.Notes,
 		strengthScore,
@@ -140,7 +145,7 @@ func (repository *AccountsRepository) CreateAccount(
 		Id:         strconv.FormatInt(lastInsertedId, 10),
 		Platform:   account.Platform,
 		Identifier: account.Identifier,
-		Passphrase: passphrase,
+		Passphrase: account.Passphrase,
 		Url:        account.Url,
 		Notes:      account.Notes,
 		Strength:   strengthScore,
