@@ -30,10 +30,10 @@
       account.identifier.toLowerCase().includes(query.toLowerCase()) ||
       account.notes.toLowerCase().includes(query.toLowerCase())
     );
-    renderAccounts(filteredAccounts);
+    renderAccounts(filteredAccounts, query);
   }
 
-  function renderAccounts(accounts) {
+  function renderAccounts(accounts, query = '') {
     const tbody = document.querySelector('tbody');
     tbody.innerHTML = '';
     for (const account of accounts) {
@@ -42,7 +42,7 @@
       const platformCell = document.createElement('td');
       const platformButton = document.createElement('button');
       platformButton.type = 'button';
-      platformButton.textContent = account.platform;
+      platformButton.innerHTML = highlightText(account.platform, query);
       platformButton.addEventListener('click', () => window.location.href = `/accounts/${account.id}`);
       platformCell.appendChild(platformButton);
       row.appendChild(platformCell);
@@ -50,7 +50,7 @@
       const identifierCell = document.createElement('td');
       const identifierButton = document.createElement('button');
       identifierButton.type = 'button';
-      identifierButton.textContent = account.identifier;
+      identifierButton.innerHTML = highlightText(account.identifier, query);
       identifierButton.addEventListener('click', () => copyText(account.identifier));
       identifierCell.appendChild(identifierButton);
       row.appendChild(identifierCell);
@@ -59,14 +59,18 @@
       const passphraseButton = document.createElement('button');
       passphraseButton.type = 'button';
       passphraseButton.textContent = 'Copy';
-      passphraseButton.addEventListener('click', function() {
-        copyPassphrase(account.id);
-      });
+      passphraseButton.addEventListener('click', () => copyPassphrase(account.id));
       passphraseCell.appendChild(passphraseButton);
       row.appendChild(passphraseCell);
 
       tbody.appendChild(row);
     }
+  }
+
+  function highlightText(text, query) {
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
   }
 
   renderAccounts(accounts);

@@ -29,6 +29,7 @@ table {
 th,
 td {
   text-align: left;
+  padding: 0.125rem;
   border-bottom: 0.06125rem solid var(--button-border);
 }
 
@@ -71,7 +72,7 @@ a:hover {
 main > a {
   align-self: flex-end;
   display: block;
-  background-color: var(--button-bg);
+  background-color: green;
   border-radius: 8px;
   color: var(--button-text) !important;
   padding: 0.5rem;
@@ -79,10 +80,6 @@ main > a {
 }
 
 main > a:hover {
-  background-color: color-mix(
-    in srgb,
-    var(--button-bg) 90%,
-    var(--canvas-bg) 10%
-  );
+  background-color: color-mix(in srgb, green 80%, var(--canvas-bg) 20%);
   color: var(--button-text);
 }
