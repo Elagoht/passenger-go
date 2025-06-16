@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"fmt"
 	"net/http"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
@@ -50,7 +51,10 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Use(auth.PrivateMiddleware)
 		router.Get("/", controller.routeApp)
 		router.Get("/accounts/{id}", controller.routeAccountDetails)
+		router.Get("/create", controller.routeAccountCreate)
+
 		router.Post("/accounts/{id}", controller.formAccountDetails)
+		router.Post("/create", controller.formAccountCreate)
 	})
 }
 
@@ -83,6 +87,13 @@ func (controller *FrontendController) routeAccountDetails(
 	controller.template.Render(writer, "app", "details", map[string]any{
 		"Account": account,
 	})
+}
+
+func (controller *FrontendController) routeAccountCreate(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	controller.template.Render(writer, "app", "create", nil)
 }
 
 func (controller *FrontendController) routeLogin(
@@ -243,4 +254,32 @@ func (controller *FrontendController) formAccountDetails(
 	}
 
 	http.Redirect(writer, request, "/", http.StatusFound)
+}
+
+func (controller *FrontendController) formAccountCreate(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	platform := request.FormValue("platform")
+	identifier := request.FormValue("identifier")
+	passphrase := request.FormValue("passphrase")
+	url := request.FormValue("url")
+	notes := request.FormValue("notes")
+
+	account, err := controller.accountsService.CreateAccount(&schemas.RequestAccountsUpsert{
+		Platform:   platform,
+		Identifier: identifier,
+		Passphrase: passphrase,
+		Url:        url,
+		Notes:      notes,
+	})
+
+	if err != nil {
+		controller.template.Render(writer, "app", "create", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+
+	http.Redirect(writer, request, fmt.Sprintf("/accounts/%s", account.Id), http.StatusFound)
 }

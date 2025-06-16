@@ -2,6 +2,7 @@
 {{ template "app" . }}{{ end }}
 {{ define "page" }}
 <h1>Account Details</h1>
+
 <form action="/accounts/{{ .Account.Id }}" method="post">
   <label>
     <span>Platform</span>
