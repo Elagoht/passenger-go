@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"net/http"
 	"os"
 
@@ -33,49 +32,19 @@ func main() {
 	apiRouter = backend.MountBackend(apiRouter)
 	router.Mount("/", apiRouter)
 
-	// Get certificate paths from environment variables
-	certPath := os.Getenv("SSL_CERT_PATH")
-	keyPath := os.Getenv("SSL_KEY_PATH")
-
-	// Configure TLS
-	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		CurvePreferences: []tls.CurveID{
-			tls.CurveP521,
-			tls.CurveP384,
-			tls.CurveP256,
-		},
-		PreferServerCipherSuites: true,
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		},
-		InsecureSkipVerify: true, // Allow self-signed certificates
-	}
-
 	// Create server
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		log.Fatalf("PORT environment variable is not set")
 	}
 	server := &http.Server{
-		Addr:         ":" + port,
-		Handler:      router,
-		TLSConfig:    tlsConfig,
-		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)), // Disable HTTP/2
+		Addr:    ":" + port,
+		Handler: router,
 	}
 
 	// Start the server
-	if certPath != "" && keyPath != "" {
-		log.Printf("Starting HTTPS server on port %s", port)
-		log.Printf("Using certificates: %s, %s", certPath, keyPath)
-		if err := server.ListenAndServeTLS(certPath, keyPath); err != nil {
-			log.Fatalf("Server failed to start: %v", err)
-		}
-	} else {
-		log.Printf("Starting HTTP server on port %s", port)
-		if err := http.ListenAndServe(":"+port, router); err != nil {
-			log.Fatalf("Server failed to start: %v", err)
-		}
+	log.Printf("Starting server on port %s", port)
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
 	}
 }
