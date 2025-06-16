@@ -1,0 +1,12 @@
+{{ define "complete" }}
+{{ template "auth" . }}{{ end }}
+{{ define "title" }}Complete - Passenger{{ end }}
+{{ define "page" }}
+<h1>Success</h1>
+
+<p>
+  You have created your vault successfully. Now you can login to your vault.
+</p>
+
+<a class="button" href="/login">Login</a>
+{{ end }}

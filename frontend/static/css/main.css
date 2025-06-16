@@ -52,9 +52,10 @@ body {
   line-height: 1.5;
 }
 
+.button,
 button {
   background-color: var(--button-bg);
-  color: var(--button-text);
+  color: var(--button-text) !important;
   border: 1px solid var(--accent-bg);
   border-radius: 4px;
   padding: 0.5rem 1rem;
@@ -64,6 +65,7 @@ button {
   transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
+.button:hover,
 button:hover {
   background-color: color-mix(
     in srgb,
@@ -73,17 +75,20 @@ button:hover {
   color: var(--button-text);
 }
 
+.button:focus,
 button:focus {
   outline: 2px solid var(--highlight-bg);
   outline-offset: 2px;
 }
 
+.button:active,
 button:active {
   background-color: var(--highlight-bg);
   color: var(--highlight-text);
   border-color: var(--highlight-bg);
 }
 
+.button:disabled,
 button:disabled {
   background-color: color-mix(
     in srgb,
@@ -139,6 +144,10 @@ a:active {
 
 a:visited {
   color: var(--visited-link);
+}
+
+a.button {
+  text-decoration: none;
 }
 
 input[type="checkbox"]:checked {
