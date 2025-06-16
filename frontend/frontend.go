@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/services"
+	"passenger-go/backend/utilities/importer"
 	"passenger-go/frontend/utilities/auth"
 	"passenger-go/frontend/utilities/form"
 	"passenger-go/frontend/utilities/template"
@@ -16,6 +17,7 @@ type FrontendController struct {
 	router          *chi.Mux
 	authService     *services.AuthService
 	accountsService *services.AccountsService
+	transferService *services.TransferService
 }
 
 func NewFrontendController() (*FrontendController, error) {
@@ -24,6 +26,7 @@ func NewFrontendController() (*FrontendController, error) {
 		router:          chi.NewRouter(),
 		authService:     services.NewAuthService(),
 		accountsService: services.NewAccountsService(),
+		transferService: services.NewTransferService(),
 	}, nil
 }
 
@@ -51,9 +54,12 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Get("/", controller.routeApp)
 		router.Get("/accounts/{id}", controller.routeAccountDetails)
 		router.Get("/create", controller.routeAccountCreate)
+		router.Get("/import", controller.routeImport)
+		router.Get("/export", controller.routeExport)
 
 		router.Post("/accounts/{id}", controller.formAccountDetails)
 		router.Post("/create", controller.formAccountCreate)
+		router.Post("/import", controller.formImport)
 	})
 }
 
@@ -93,6 +99,20 @@ func (controller *FrontendController) routeAccountCreate(
 	request *http.Request,
 ) {
 	controller.template.Render(writer, "app", "create", nil)
+}
+
+func (controller *FrontendController) routeImport(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	controller.template.Render(writer, "app", "import", nil)
+}
+
+func (controller *FrontendController) routeExport(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	controller.template.Render(writer, "app", "export", nil)
 }
 
 func (controller *FrontendController) routeLogin(
@@ -283,5 +303,81 @@ func (controller *FrontendController) formAccountCreate(
 	controller.template.Render(writer, "app", "details", map[string]any{
 		"Account": account,
 		"Message": "Account created successfully",
+	})
+}
+
+func (controller *FrontendController) formImport(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+
+	file, _, err := request.FormFile("file")
+	if err != nil {
+		controller.template.Render(writer, "app", "import", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+	defer file.Close()
+
+	csvFile, _, err := request.FormFile("file")
+	if err != nil {
+		controller.template.Render(writer, "app", "import", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+	defer csvFile.Close()
+
+	// First read to detect platform
+	platform := importer.GetPlatform(csvFile)
+	if platform.Fields == nil {
+		controller.template.Render(writer, "app", "import", map[string]string{
+			"Error": "The uploaded file format is not supported. Please use Firefox or Chromium export format.",
+		})
+		return
+	}
+
+	// Reset file pointer for parsing
+	if _, err := csvFile.Seek(0, 0); err != nil {
+		controller.template.Render(writer, "app", "import", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+
+	accounts, err := platform.Parse(csvFile)
+	if err != nil {
+		controller.template.Render(writer, "app", "import", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+
+	if len(accounts) == 0 {
+		controller.template.Render(writer, "app", "import", map[string]string{
+			"Error": "No accounts found in the CSV file",
+		})
+		return
+	}
+
+	importResult, err := controller.transferService.Import(accounts)
+	if err != nil {
+		controller.template.Render(writer, "app", "import", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+
+	if len(importResult.FailedOnes) > 0 {
+		controller.template.Render(writer, "app", "import", map[string]any{
+			"SuccessCount": importResult.SuccessCount,
+			"FailedOnes":   importResult.FailedOnes,
+		})
+		return
+	}
+
+	controller.template.Render(writer, "app", "import", map[string]any{
+		"SuccessCount": importResult.SuccessCount,
 	})
 }

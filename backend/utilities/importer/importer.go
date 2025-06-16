@@ -169,7 +169,11 @@ func (p Platform) Parse(
 			Identifier: calculateFields(p.TransformFields["identifier"], record[usernameIndex]),
 			Passphrase: calculateFields(p.TransformFields["passphrase"], record[passwordIndex]),
 			Url:        calculateFields(p.TransformFields["url"], record[urlIndex]),
-			Notes:      calculateFields(p.TransformFields["notes"], record[notesIndex]) + "",
+		}
+
+		// Handle optional notes field
+		if notesIndex != -1 {
+			account.Notes = calculateFields(p.TransformFields["notes"], record[notesIndex])
 		}
 
 		results = append(results, account)

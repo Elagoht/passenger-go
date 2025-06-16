@@ -1,0 +1,38 @@
+{{ define "import" }}
+{{ template "app" . }}{{ end }}
+{{ define "title" }}Import - Passenger{{ end }}
+{{ define "page" }}
+<h1>Import Accounts</h1>
+
+<blockquote class="info">
+  Currently, only Firefox and Chromium-based CSV files are supported
+</blockquote>
+
+{{ if .Error }}
+<blockquote class="error">{{ .Error }}</blockquote>
+{{ end }}
+
+{{ if .SuccessCount }}
+<blockquote class="success">Successfully imported {{ .SuccessCount }} accounts.</blockquote>
+{{ end }}
+
+{{ if .FailedOnes }}
+<blockquote class="error">
+  Failed to import the following accounts:
+  <ol>
+    {{ range .FailedOnes }}
+    <li>{{ .Platform }} - {{ .Identifier }}</li>
+    {{ end }}
+  </ol>
+</blockquote>
+{{ end }}
+
+<form action="/import" method="post" enctype="multipart/form-data">
+  <label>
+    <span>Import Passphrases</span>
+    <input type="file" name="file" accept="text/csv" required />
+  </label>
+
+  <button type="submit">Import</button>
+</form>
+{{ end }}

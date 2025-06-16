@@ -127,6 +127,12 @@ blockquote {
   color: var(--button-text);
 }
 
+.info {
+  background-color: color-mix(in srgb, lightblue 60%, var(--canvas-bg) 40%);
+  border-left: 0.25rem solid lightblue;
+  color: var(--canvas-text);
+}
+
 button.danger {
   background-color: color-mix(in srgb, red 60%, var(--canvas-bg) 40%);
   color: var(--button-text) !important;
@@ -135,4 +141,8 @@ button.danger {
 
 button.danger:hover {
   background-color: color-mix(in srgb, red 80%, var(--canvas-bg) 20%);
+}
+
+ol {
+  padding-left: 2rem;
 }
