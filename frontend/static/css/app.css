@@ -23,27 +23,20 @@ table {
   font-size: 1rem;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 0.06125rem 3px 0
-    color-mix(in srgb, var(--canvas-text) 10%, transparent 90%);
   border: 0.06125rem solid var(--button-border);
 }
 
 th,
 td {
-  padding: 0.125rem;
   text-align: left;
   border-bottom: 0.06125rem solid var(--button-border);
-}
-
-th:first-child,
-td:first-child {
-  padding: 0;
 }
 
 th {
   background-color: var(--field-bg);
   color: var(--field-text);
   font-weight: 600;
+  padding: 0.5rem;
   border-bottom: 2px solid var(--button-border);
 }
 
@@ -69,7 +62,6 @@ a {
   color: var(--link-text);
   text-decoration: none;
   display: block;
-  padding-left: 0.5rem;
 }
 
 a:hover {
