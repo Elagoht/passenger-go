@@ -11,7 +11,6 @@ services:
     environment:
       - SSL_CERT_PATH=/app/certs/server.crt
       - SSL_KEY_PATH=/app/certs/server.key
-      - DB_PASSPHRASE=${DB_PASSPHRASE}
       - JWT_SECRET=${JWT_SECRET}
       - AES_GCM_SECRET=${AES_GCM_SECRET}
       - SALT=${SALT}
