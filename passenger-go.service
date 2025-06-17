@@ -1,0 +1,13 @@
+[Unit]
+Description=Passenger Go
+After=network.target
+
+[Service]
+ExecStart=/opt/passenger-go/passenger-go
+Restart=always
+User={USER}
+Environment=PORT=8080
+WorkingDirectory=/opt/passenger-go
+
+[Install]
+WantedBy=multi-user.target
