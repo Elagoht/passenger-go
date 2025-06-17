@@ -62,6 +62,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p release
+          cp -r frontend/templates release/
           go build -o release/passenger-go-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.platform == 'windows' && '.exe' || '' }} cli/main.go
 
       - name: Upload artifacts
