@@ -39,6 +39,13 @@ sudo mkdir -p /opt/passenger-go
 infoPrint "Downloading latest release..."
 sudo curl -sL "https://github.com/Elagoht/passenger-go/releases/latest/download/passenger-go-linux-$arch" -o /opt/passenger-go/passenger-go
 
+infoPrint "Copying templates..."
+mkdir -p /opt/passenger-go/frontend/templates
+sudo cp -r /opt/passenger-go/frontend/templates /opt/passenger-go/frontend/templates
+infoPrint "Copying static files..."
+mkdir -p /opt/passenger-go/frontend/static
+sudo cp -r /opt/passenger-go/frontend/static /opt/passenger-go/frontend/static
+
 infoPrint "Setting permissions..."
 sudo chmod +x /opt/passenger-go/passenger-go
 sudo chown -R $(whoami) /opt/passenger-go
