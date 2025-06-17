@@ -1,0 +1,101 @@
+# go build -o passenger-go cli/main.go
+
+name: Build Go Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            platform: linux
+            arch: arm64
+            goos: linux
+            goarch: arm64
+          - os: windows-latest
+            platform: windows
+            arch: amd64
+            goos: windows
+            goarch: amd64
+          - os: windows-latest
+            platform: windows
+            arch: arm64
+            goos: windows
+            goarch: arm64
+          - os: macos-latest
+            platform: darwin
+            arch: amd64
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p release
+          go build -o release/passenger-go-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.platform == 'windows' && '.exe' || '' }} cli/main.go
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/binary-*/passenger-go-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

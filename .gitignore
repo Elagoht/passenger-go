@@ -6,3 +6,6 @@
 
 # Certificates
 certs/
+
+# Built files
+passenger-go
