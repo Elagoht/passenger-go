@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 
 	"github.com/joho/godotenv"
@@ -43,6 +44,11 @@ func (database *database) connect() error {
 
 	if database.connection != nil { // Already connected
 		return nil
+	}
+
+	// If database/ dir doesn't exist, create it
+	if _, err := os.Stat("database"); os.IsNotExist(err) {
+		os.Mkdir("database", 0755)
 	}
 
 	connection, err := sql.Open("sqlite", "file:database/passenger.db")
