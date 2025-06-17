@@ -41,10 +41,10 @@ sudo curl -sL "https://github.com/Elagoht/passenger-go/releases/latest/download/
 
 infoPrint "Copying templates..."
 sudo mkdir -p /opt/passenger-go/frontend/templates
-sudo cp -r /opt/passenger-go/frontend/templates /opt/passenger-go/frontend/templates
+sudo cp -r ./frontend/templates /opt/passenger-go/frontend/templates
 infoPrint "Copying static files..."
 sudo mkdir -p /opt/passenger-go/frontend/static
-sudo cp -r /opt/passenger-go/frontend/static /opt/passenger-go/frontend/static
+sudo cp -r ./frontend/static /opt/passenger-go/frontend/static
 
 infoPrint "Setting permissions..."
 sudo chmod +x /opt/passenger-go/passenger-go
