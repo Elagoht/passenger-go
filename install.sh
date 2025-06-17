@@ -50,6 +50,14 @@ else
     echo "Default PORT will be used"
 fi
 
+echo Now we need this ENV variables:
+read -p "JWT_SECRET: " jwt_secret
+echo "JWT_SECRET=$jwt_secret" >> /opt/passenger-go/.env
+read -p "AES_GCM_SECRET: " aes_gcm_secret
+echo "AES_GCM_SECRET=$aes_gcm_secret" >> /opt/passenger-go/.env
+read -p "SALT: " salt
+echo "SALT=$salt" >> /opt/passenger-go/.env
+
 echo "Reloading systemd..."
 sudo systemctl daemon-reload
 
