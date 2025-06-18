@@ -2,11 +2,9 @@ package frontend
 
 import (
 	"net/http"
-	"passenger-go/backend/schemas"
-	"passenger-go/backend/services"
-	"passenger-go/backend/utilities/importer"
+	"passenger-go/frontend/forms"
+	"passenger-go/frontend/pages"
 	"passenger-go/frontend/utilities/auth"
-	"passenger-go/frontend/utilities/form"
 	"passenger-go/frontend/utilities/template"
 
 	"github.com/go-chi/chi"
@@ -14,19 +12,15 @@ import (
 
 type FrontendController struct {
 	template        *template.TemplateManager
-	router          *chi.Mux
-	authService     *services.AuthService
-	accountsService *services.AccountsService
-	transferService *services.TransferService
+	pagesController *pages.PagesController
+	formsController *forms.FormsController
 }
 
 func NewFrontendController() (*FrontendController, error) {
 	return &FrontendController{
 		template:        template.NewTemplateManager(),
-		router:          chi.NewRouter(),
-		authService:     services.NewAuthService(),
-		accountsService: services.NewAccountsService(),
-		transferService: services.NewTransferService(),
+		pagesController: pages.NewPagesController(),
+		formsController: forms.NewFormsController(),
 	}, nil
 }
 
@@ -39,383 +33,29 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 	router.Group(func(router chi.Router) {
 		router.Use(auth.PublicMiddleware)
 
-		router.Get("/login", controller.routeLogin)
-		router.Get("/register", controller.routeRegister)
+		router.Get("/login", controller.pagesController.RouteLogin)
+		router.Get("/register", controller.pagesController.RouteRegister)
+		router.Get("/recover", controller.pagesController.RouteRecover)
 
-		router.Post("/register", controller.formRegister)
-		router.Post("/check", controller.formCheck)
-		router.Post("/complete", controller.formComplete)
-		router.Post("/login", controller.formLogin)
+		router.Post("/register", controller.formsController.FormRegister)
+		router.Post("/check", controller.formsController.FormCheck)
+		router.Post("/complete", controller.formsController.FormComplete)
+		router.Post("/login", controller.formsController.FormLogin)
 	})
 
 	// Protected routes
 	router.Group(func(router chi.Router) {
 		router.Use(auth.PrivateMiddleware)
-		router.Get("/", controller.routeApp)
-		router.Get("/accounts/{id}", controller.routeAccountDetails)
-		router.Get("/create", controller.routeAccountCreate)
-		router.Get("/import", controller.routeImport)
-		router.Get("/export", controller.routeExport)
-		router.Get("/change-password", controller.routeChangePassword)
+		router.Get("/", controller.pagesController.RouteApp)
+		router.Get("/accounts/{id}", controller.pagesController.RouteAccountDetails)
+		router.Get("/create", controller.pagesController.RouteAccountCreate)
+		router.Get("/import", controller.pagesController.RouteImport)
+		router.Get("/export", controller.pagesController.RouteExport)
+		router.Get("/change-password", controller.pagesController.RouteChangePassword)
 
-		router.Post("/accounts/{id}", controller.formAccountDetails)
-		router.Post("/create", controller.formAccountCreate)
-		router.Post("/import", controller.formImport)
-		router.Post("/change-password", controller.formChangePassword)
-	})
-}
-
-func (controller *FrontendController) routeApp(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	accounts, err := controller.accountsService.GetAccounts()
-	if err != nil {
-		accounts = []*schemas.ResponseAccount{}
-	}
-
-	controller.template.Render(writer, "app", "main", map[string]any{
-		"Accounts": accounts,
-		"Token":    request.CookiesNamed("token")[0].Value,
-	})
-}
-
-func (controller *FrontendController) routeAccountDetails(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	id := chi.URLParam(request, "id")
-	account, err := controller.accountsService.GetAccount(id)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	controller.template.Render(writer, "app", "details", map[string]any{
-		"Account": account,
-	})
-}
-
-func (controller *FrontendController) routeAccountCreate(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	controller.template.Render(writer, "app", "create", nil)
-}
-
-func (controller *FrontendController) routeImport(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	controller.template.Render(writer, "app", "import", nil)
-}
-
-func (controller *FrontendController) routeExport(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	controller.template.Render(writer, "app", "export", nil)
-}
-
-func (controller *FrontendController) routeChangePassword(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	controller.template.Render(writer, "app", "change-password", nil)
-}
-
-func (controller *FrontendController) routeLogin(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	initialized, err := controller.authService.Status()
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if !initialized {
-		http.Redirect(writer, request, "/register", http.StatusSeeOther)
-		return
-	}
-
-	controller.template.Render(writer, "auth", "login", nil)
-}
-
-func (controller *FrontendController) routeRegister(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	initialized, err := controller.authService.Status()
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if initialized {
-		http.Redirect(writer, request, "/login", http.StatusSeeOther)
-		return
-	}
-
-	controller.template.Render(writer, "auth", "register", nil)
-}
-
-func (controller *FrontendController) formRegister(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	passphrase := request.FormValue("passphrase")
-	confirmPassphrase := request.FormValue("confirm-passphrase")
-
-	formError := form.ValidateRegisterForm(passphrase, confirmPassphrase)
-
-	if formError != "" {
-		controller.template.Render(writer, "auth", "register", map[string]string{
-			"Error": formError,
-		})
-		return
-	}
-
-	recovery, err := controller.authService.RegisterUser(passphrase)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	controller.template.Render(writer, "auth", "validate", map[string]string{
-		"Recovery": recovery,
-	})
-}
-
-func (controller *FrontendController) formCheck(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	controller.template.Render(writer, "auth", "check", nil)
-}
-
-func (controller *FrontendController) formComplete(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	recovery := request.FormValue("recovery")
-
-	err := controller.authService.CompleteRegistration(recovery)
-	if err != nil {
-		apiError, ok := err.(*schemas.APIError)
-		if ok {
-			if apiError.Code == string(schemas.ErrAlreadyInitialized) {
-				http.Redirect(writer, request, "/login", http.StatusFound)
-				return
-			} else {
-				controller.template.Render(writer, "auth", "complete", map[string]string{
-					"Error":    apiError.Message,
-					"Recovery": recovery,
-				})
-			}
-		} else {
-			controller.template.Render(writer, "auth", "complete", map[string]string{
-				"Error": err.Error(),
-			})
-		}
-		return
-	}
-
-	controller.template.Render(writer, "auth", "complete", nil)
-}
-
-func (controller *FrontendController) formLogin(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	passphrase := request.FormValue("passphrase")
-
-	token, err := controller.authService.LoginUser(passphrase)
-	if err != nil {
-		controller.template.Render(writer, "auth", "login", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-
-	http.SetCookie(writer, &http.Cookie{
-		Name:   "token",
-		Value:  token,
-		Path:   "/",
-		MaxAge: 360,
-	})
-
-	http.Redirect(writer, request, "/", http.StatusFound)
-}
-
-func (controller *FrontendController) formAccountDetails(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	id := chi.URLParam(request, "id")
-	platform := request.FormValue("platform")
-	identifier := request.FormValue("identifier")
-	passphrase := request.FormValue("passphrase")
-	url := request.FormValue("url")
-	notes := request.FormValue("notes")
-
-	err := controller.accountsService.UpdateAccount(id, &schemas.RequestAccountsUpsert{
-		Platform:   platform,
-		Identifier: identifier,
-		Passphrase: passphrase,
-		Url:        url,
-		Notes:      notes,
-	})
-	if err != nil {
-		controller.template.Render(writer, "app", "details", map[string]any{
-			"Error": err.Error(),
-			"Account": &schemas.ResponseAccountDetails{
-				Id:         id,
-				Platform:   platform,
-				Identifier: identifier,
-				Passphrase: passphrase,
-				Url:        url,
-				Notes:      notes,
-			},
-		})
-		return
-	}
-
-	http.Redirect(writer, request, "/", http.StatusFound)
-}
-
-func (controller *FrontendController) formAccountCreate(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	platform := request.FormValue("platform")
-	identifier := request.FormValue("identifier")
-	passphrase := request.FormValue("passphrase")
-	url := request.FormValue("url")
-	notes := request.FormValue("notes")
-
-	account, err := controller.accountsService.CreateAccount(&schemas.RequestAccountsUpsert{
-		Platform:   platform,
-		Identifier: identifier,
-		Passphrase: passphrase,
-		Url:        url,
-		Notes:      notes,
-	})
-
-	if err != nil {
-		controller.template.Render(writer, "app", "create", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-
-	controller.template.Render(writer, "app", "details", map[string]any{
-		"Account": account,
-		"Message": "Account created successfully",
-	})
-}
-
-func (controller *FrontendController) formImport(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-
-	file, _, err := request.FormFile("file")
-	if err != nil {
-		controller.template.Render(writer, "app", "import", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-	defer file.Close()
-
-	csvFile, _, err := request.FormFile("file")
-	if err != nil {
-		controller.template.Render(writer, "app", "import", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-	defer csvFile.Close()
-
-	// First read to detect platform
-	platform := importer.GetPlatform(csvFile)
-	if platform.Fields == nil {
-		controller.template.Render(writer, "app", "import", map[string]string{
-			"Error": "The uploaded file format is not supported. Please use Firefox or Chromium export format.",
-		})
-		return
-	}
-
-	// Reset file pointer for parsing
-	if _, err := csvFile.Seek(0, 0); err != nil {
-		controller.template.Render(writer, "app", "import", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-
-	accounts, err := platform.Parse(csvFile)
-	if err != nil {
-		controller.template.Render(writer, "app", "import", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-
-	if len(accounts) == 0 {
-		controller.template.Render(writer, "app", "import", map[string]string{
-			"Error": "No accounts found in the CSV file",
-		})
-		return
-	}
-
-	importResult, err := controller.transferService.Import(accounts)
-	if err != nil {
-		controller.template.Render(writer, "app", "import", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-
-	if len(importResult.FailedOnes) > 0 {
-		controller.template.Render(writer, "app", "import", map[string]any{
-			"SuccessCount": importResult.SuccessCount,
-			"FailedOnes":   importResult.FailedOnes,
-		})
-		return
-	}
-
-	controller.template.Render(writer, "app", "import", map[string]any{
-		"SuccessCount": importResult.SuccessCount,
-	})
-}
-
-func (controller *FrontendController) formChangePassword(
-	writer http.ResponseWriter,
-	request *http.Request,
-) {
-	passphrase := request.FormValue("passphrase")
-	confirmPassphrase := request.FormValue("confirmPassphrase")
-
-	formError := form.ValidateChangePasswordForm(passphrase, confirmPassphrase)
-
-	if formError != "" {
-		controller.template.Render(writer, "app", "change-password", map[string]string{
-			"Error": formError,
-		})
-		return
-	}
-
-	err := controller.authService.UpdatePassphrase(passphrase)
-	if err != nil {
-		controller.template.Render(writer, "app", "change-password", map[string]string{
-			"Error": err.Error(),
-		})
-		return
-	}
-
-	controller.template.Render(writer, "app", "change-password", map[string]string{
-		"Message": "Passphrase changed successfully",
+		router.Post("/accounts/{id}", controller.formsController.FormAccountDetails)
+		router.Post("/create", controller.formsController.FormAccountCreate)
+		router.Post("/import", controller.formsController.FormImport)
+		router.Post("/change-password", controller.formsController.FormChangePassword)
 	})
 }
