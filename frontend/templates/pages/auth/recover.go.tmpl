@@ -1,0 +1,35 @@
+{{ define "login" }}
+{{ template "auth" . }}{{ end }}
+{{ define "title" }}Recover - Passenger{{ end }}
+{{ define "page" }}
+<form action="/recover" method="post">
+  <strong>
+    Recover your vault
+  </strong>
+
+  <p>
+    You can use your recovery key to renew your passphrase.
+  </p>
+
+  <label>
+    <span>Recovery Key</span>
+    <input type="password" autocomplete="off" name="recoveryKey" />
+  </label>
+
+  <label>
+    <span>New Passphrase</span>
+    <input type="password" autocomplete="off" name="newPassphrase" />
+  </label>
+
+  <label>
+    <span>Confirm New Passphrase</span>
+    <input type="password" autocomplete="off" name="confirmNewPassphrase" />
+  </label>
+
+  {{ if .Error }}
+  <small>{{ .Error }}</small>
+  {{ end }}
+
+  <button type="submit">Recover</button>
+</form>
+{{ end }}

@@ -9,7 +9,7 @@
 
   <label>
     <span>Passphrase</span>
-    <input type="password" name="passphrase" />
+    <input type="password" autocomplete="off" name="passphrase" />
   </label>
 
   {{ if .Error }}
@@ -18,4 +18,6 @@
 
   <button type="submit">Unlock</button>
 </form>
+
+<a href="/recover" style="align-self: flex-end;">Forgot passphrase?</a>
 {{ end }}
