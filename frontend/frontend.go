@@ -56,10 +56,12 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Get("/create", controller.routeAccountCreate)
 		router.Get("/import", controller.routeImport)
 		router.Get("/export", controller.routeExport)
+		router.Get("/change-password", controller.routeChangePassword)
 
 		router.Post("/accounts/{id}", controller.formAccountDetails)
 		router.Post("/create", controller.formAccountCreate)
 		router.Post("/import", controller.formImport)
+		router.Post("/change-password", controller.formChangePassword)
 	})
 }
 
@@ -113,6 +115,13 @@ func (controller *FrontendController) routeExport(
 	request *http.Request,
 ) {
 	controller.template.Render(writer, "app", "export", nil)
+}
+
+func (controller *FrontendController) routeChangePassword(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	controller.template.Render(writer, "app", "change-password", nil)
 }
 
 func (controller *FrontendController) routeLogin(
@@ -379,5 +388,34 @@ func (controller *FrontendController) formImport(
 
 	controller.template.Render(writer, "app", "import", map[string]any{
 		"SuccessCount": importResult.SuccessCount,
+	})
+}
+
+func (controller *FrontendController) formChangePassword(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	passphrase := request.FormValue("passphrase")
+	confirmPassphrase := request.FormValue("confirmPassphrase")
+
+	formError := form.ValidateChangePasswordForm(passphrase, confirmPassphrase)
+
+	if formError != "" {
+		controller.template.Render(writer, "app", "change-password", map[string]string{
+			"Error": formError,
+		})
+		return
+	}
+
+	err := controller.authService.UpdatePassphrase(passphrase)
+	if err != nil {
+		controller.template.Render(writer, "app", "change-password", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+
+	controller.template.Render(writer, "app", "change-password", map[string]string{
+		"Message": "Passphrase changed successfully",
 	})
 }

@@ -6,9 +6,14 @@
 </form>
 
 <nav>
+  <button onclick="toggleMenu()" style="width: fit-content;">⚙️</button>
+  <a href="/create">New Account</a>
+</nav>
+
+<nav id="menu" style="display: none;">
+  <a href="/change-password">Change Password</a>
   <a href="/export">Export</a>
   <a href="/import">Import</a>
-  <a href="/create">New Account</a>
 </nav>
 
 <table>
@@ -26,6 +31,8 @@
 {{ end }}
 {{ define "script" }}
 <script>
+  let menuOpen = false;
+
   const accounts = {{ .Accounts }};
 
   function searchAccounts(query) {
@@ -130,6 +137,11 @@
       document.execCommand('copy');
       document.body.removeChild(textarea);
     });
+  }
+
+  function toggleMenu() {
+    menuOpen = !menuOpen;
+    document.getElementById('menu').style.display = menuOpen ? 'flex' : 'none';
   }
 </script>
 {{ end }}

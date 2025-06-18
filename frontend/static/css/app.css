@@ -85,11 +85,14 @@ a:hover {
   text-decoration: none;
 }
 
+nav:first-of-type {
+  justify-content: space-between;
+}
+
 nav {
   display: flex;
   flex-direction: row;
   gap: 0.5rem;
-  justify-content: flex-end;
 }
 
 nav a {

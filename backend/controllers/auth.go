@@ -30,13 +30,13 @@ func NewAuthController() *AuthController {
 }
 
 func (controller *AuthController) MountAuthRouter(router *chi.Mux) {
-	controller.privateRouter.Mux().Use(guards.JWTGuard)
-	controller.privateRouter.Post("/update", controller.UpdatePassphrase)
-
 	controller.publicRouter.Get("/status", controller.Status)
 	controller.publicRouter.Post("/register", controller.RegisterUser)
 	controller.publicRouter.Post("/validate", controller.CompleteRegistration)
 	controller.publicRouter.Post("/login", controller.LoginUser)
+
+	controller.privateRouter.Mux().Use(guards.JWTGuard)
+	controller.privateRouter.Patch("/passphrase", controller.UpdatePassphrase)
 
 	router.Mount("/auth", controller.publicRouter.Mux())
 	router.Mount("/auth/protected", controller.privateRouter.Mux())
