@@ -35,3 +35,10 @@ Required environment variables:
 ## License
 
 This project is licensed under the [GPL-3.0](LICENSE) license.
+
+## Roadmap
+
+All program logic is implemented.
+
+- [ ] Create a prettier frontend
+- [ ] Create an api documentation
