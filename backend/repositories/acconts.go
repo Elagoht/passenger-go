@@ -101,18 +101,14 @@ func (repository *AccountsRepository) GetPassphrase(
 
 func (repository *AccountsRepository) CreateAccount(
 	account *schemas.RequestAccountsUpsert,
+	strengthScore int,
 ) (*schemas.ResponseAccountDetails, error) {
 	statement, err := repository.database.Prepare(QueryAccountCreate)
 	if err != nil {
 		return nil, err
 	}
 
-	strengthScore, err := strength.CalculateStrength(account.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedPassphrase, err := encrypt.Encrypt(account.Passphrase)
+	encryptedStrengthScore, err := encrypt.Encrypt(strconv.Itoa(strengthScore))
 	if err != nil {
 		return nil, err
 	}
@@ -120,10 +116,10 @@ func (repository *AccountsRepository) CreateAccount(
 	result, err := statement.Exec(
 		account.Platform,
 		account.Identifier,
-		encryptedPassphrase,
+		account.Passphrase,
 		account.Url,
 		account.Notes,
-		strengthScore,
+		encryptedStrengthScore,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
