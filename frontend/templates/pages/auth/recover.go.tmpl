@@ -2,6 +2,15 @@
 {{ template "auth" . }}{{ end }}
 {{ define "title" }}Recover - Passenger{{ end }}
 {{ define "page" }}
+
+{{ if .Message }}
+<blockquote class="success">
+  {{ .Message }}
+</blockquote>
+
+<a class="button" href="/login">Login</a>
+{{ end }}
+
 <form action="/recover" method="post">
   <strong>
     Recover your vault

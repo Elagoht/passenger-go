@@ -114,31 +114,6 @@ nav a:last-child:hover {
   color: var(--button-text);
 }
 
-blockquote {
-  color: var(--button-text);
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  margin: 0;
-}
-
-.success {
-  background-color: color-mix(in srgb, green 70%, var(--canvas-bg) 30%);
-  border-left: 0.25rem solid green;
-  color: var(--button-text);
-}
-
-.error {
-  background-color: color-mix(in srgb, red 60%, var(--canvas-bg) 40%);
-  border-left: 0.25rem solid red;
-  color: var(--button-text);
-}
-
-.info {
-  background-color: color-mix(in srgb, lightblue 60%, var(--canvas-bg) 40%);
-  border-left: 0.25rem solid lightblue;
-  color: var(--canvas-text);
-}
-
 button.danger {
   background-color: color-mix(in srgb, red 60%, var(--canvas-bg) 40%);
   color: var(--button-text) !important;

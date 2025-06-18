@@ -19,24 +19,19 @@
 package services
 
 import (
-	"passenger-go/backend/pipes"
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities/encrypt"
 	"passenger-go/backend/utilities/jwtoken"
-
-	"github.com/go-playground/validator/v10"
 )
 
 type AuthService struct {
 	repository *repositories.AuthRepository
-	validate   *validator.Validate
 }
 
 func NewAuthService() *AuthService {
 	return &AuthService{
 		repository: repositories.NewAuthRepository(),
-		validate:   pipes.GetValidator(),
 	}
 }
 
@@ -174,6 +169,48 @@ func (service *AuthService) UpdatePassphrase(newPassphrase string) error {
 		return schemas.NewAPIError(
 			schemas.ErrNotInitializedYet,
 			"You haven't initialized the application yet",
+			nil,
+		)
+	}
+
+	encryptedNewPassphrase, err := encrypt.Encrypt(newPassphrase)
+	if err != nil {
+		return schemas.NewAPIError(
+			schemas.ErrEncryptionFailed,
+			"Couldn't encrypt passphrase",
+			err,
+		)
+	}
+
+	return service.repository.UpdateUser(encryptedNewPassphrase)
+}
+
+func (service *AuthService) RecoverUser(
+	recoveryKey string,
+	newPassphrase string,
+) error {
+	isInitialized, err := service.Status()
+	if err != nil {
+		return err
+	}
+
+	if !isInitialized {
+		return schemas.NewAPIError(
+			schemas.ErrNotInitializedYet,
+			"You haven't initialized the application yet",
+			nil,
+		)
+	}
+
+	actualRecoveryKey, err := service.repository.GetRecoveryKey()
+	if err != nil {
+		return err
+	}
+
+	if actualRecoveryKey != recoveryKey {
+		return schemas.NewAPIError(
+			schemas.ErrInvalidCredentials,
+			"Invalid recovery key",
 			nil,
 		)
 	}

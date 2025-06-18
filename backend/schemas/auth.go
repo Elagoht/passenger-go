@@ -27,3 +27,8 @@ type ResponseAuthLogin struct {
 type RequestAuthUpdatePassphrase struct {
 	Passphrase string `json:"passphrase"`
 }
+
+type RequestAuthRecover struct {
+	RecoveryKey   string `json:"recoveryKey"`
+	NewPassphrase string `json:"newPassphrase"`
+}

@@ -53,3 +53,38 @@ func ValidateChangePasswordForm(passphrase string, confirmPassphrase string) str
 
 	return ""
 }
+
+var recoverErrors = map[string]string{
+	"recoveryKey":          "Recovery key is required",
+	"newPassphrase":        "New passphrase is required",
+	"confirmNewPassphrase": "Confirm new passphrase is required",
+	"match":                "Passphrases do not match",
+	"length":               "Passphrase must be at least 12 characters long",
+	"unknown":              "An unknown error occurred",
+}
+
+func ValidateRecoverForm(
+	recoveryKey string,
+	newPassphrase string,
+	confirmNewPassphrase string,
+) string {
+	if recoveryKey == "" {
+		return recoverErrors["recoveryKey"]
+	}
+	if newPassphrase == "" {
+		return recoverErrors["newPassphrase"]
+	}
+	if confirmNewPassphrase == "" {
+		return recoverErrors["confirmNewPassphrase"]
+	}
+
+	if len(newPassphrase) < 12 {
+		return recoverErrors["length"]
+	}
+
+	if newPassphrase != confirmNewPassphrase {
+		return recoverErrors["match"]
+	}
+
+	return ""
+}

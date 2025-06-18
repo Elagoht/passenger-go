@@ -41,6 +41,7 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Post("/check", controller.formsController.FormCheck)
 		router.Post("/complete", controller.formsController.FormComplete)
 		router.Post("/login", controller.formsController.FormLogin)
+		router.Post("/recover", controller.formsController.FormRecover)
 	})
 
 	// Protected routes

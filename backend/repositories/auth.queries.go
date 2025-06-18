@@ -6,4 +6,5 @@ const (
 	QueryCreateUser       = `UPDATE user SET passphrase = ?, recovery = ? WHERE id = 1`
 	QueryValidateUser     = `UPDATE user SET validated = TRUE`
 	QueryUpdatePassphrase = `UPDATE user SET passphrase = ?`
+	QueryGetRecoveryKey   = `SELECT recovery FROM user LIMIT 1`
 )

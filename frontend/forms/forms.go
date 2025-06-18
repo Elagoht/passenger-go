@@ -286,3 +286,33 @@ func (controller *FormsController) FormChangePassword(
 		"Message": "Passphrase changed successfully",
 	})
 }
+
+func (controller *FormsController) FormRecover(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	recoveryKey := request.FormValue("recoveryKey")
+	newPassphrase := request.FormValue("newPassphrase")
+	confirmNewPassphrase := request.FormValue("confirmNewPassphrase")
+
+	formError := form.ValidateRecoverForm(recoveryKey, newPassphrase, confirmNewPassphrase)
+
+	if formError != "" {
+		controller.template.Render(writer, "auth", "recover", map[string]string{
+			"Error": formError,
+		})
+		return
+	}
+
+	err := controller.authService.RecoverUser(recoveryKey, newPassphrase)
+	if err != nil {
+		controller.template.Render(writer, "auth", "recover", map[string]string{
+			"Error": err.Error(),
+		})
+		return
+	}
+
+	controller.template.Render(writer, "auth", "recover", map[string]string{
+		"Message": "Passphrase recovered successfully",
+	})
+}

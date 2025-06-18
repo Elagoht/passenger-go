@@ -129,3 +129,19 @@ func (repository *AuthRepository) UpdateUser(
 
 	return nil
 }
+
+func (repository *AuthRepository) GetRecoveryKey() (string, error) {
+	row := repository.database.QueryRow(QueryGetRecoveryKey)
+
+	var recoveryKey string
+	err := row.Scan(&recoveryKey)
+	if err != nil {
+		return "", schemas.NewAPIError(
+			schemas.ErrDatabase,
+			"failed to get recovery key",
+			err,
+		)
+	}
+
+	return recoveryKey, nil
+}
