@@ -45,18 +45,62 @@ header a {
 }
 
 header nav {
+  position: relative;
   display: flex;
   gap: 0.5rem;
 }
 
-header nav a {
-  display: block;
+header nav #nav-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.5rem;
+  border: none;
   border-radius: 0.25rem;
-  text-align: left;
+  background-color: var(--canvas-bg);
+  color: var(--button-text);
+  cursor: pointer;
+  font-size: 1.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
-header nav a:hover {
+header nav #nav-toggle:hover {
+  background-color: #2e2e3e;
+}
+
+header nav #nav-dropdown {
+  position: absolute;
+  top: calc(100% + 1.2rem);
+  right: 0;
+  background-color: #1e1e2e;
+  border: 0.06125rem solid var(--button-border);
+  border-radius: 0.25rem;
+  padding: 0.5rem 0;
+  min-width: 12rem;
+  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-0.5rem);
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+
+header nav #nav-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+header nav #nav-dropdown a {
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: 0;
+  text-align: left;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+header nav #nav-dropdown a:hover {
   background-color: #2e2e3e;
 }
 
@@ -74,7 +118,7 @@ table {
   background-color: var(--canvas-bg);
   color: var(--canvas-text);
   font-size: 1rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   overflow: hidden;
   border: 0.06125rem solid var(--button-border);
 }
@@ -91,7 +135,7 @@ th {
   color: var(--field-text);
   font-weight: 600;
   padding: 0.5rem;
-  border-bottom: 2px solid var(--button-border);
+  border-bottom: 0.125rem solid var(--button-border);
 }
 
 tr:last-child td {
