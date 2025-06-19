@@ -5,7 +5,6 @@ import (
 	"passenger-go/backend/repositories"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities/encrypt"
-	"passenger-go/backend/utilities/strength"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -28,18 +27,7 @@ func (service *AccountsService) GetAccounts() ([]*schemas.ResponseAccount, error
 		return nil, err
 	}
 
-	decryptedAccounts := []*schemas.ResponseAccount{}
-
-	for _, account := range accounts {
-		decryptedData, err := generateDecryptedListData(account)
-		if err != nil {
-			return nil, err
-		}
-
-		decryptedAccounts = append(decryptedAccounts, decryptedData)
-	}
-
-	return decryptedAccounts, nil
+	return accounts, nil
 }
 
 func (service *AccountsService) GetAccount(
@@ -50,12 +38,13 @@ func (service *AccountsService) GetAccount(
 		return nil, err
 	}
 
-	decryptedData, err := generateDectyptedData(account)
+	decryptedPassphrase, err := service.GetPassphrase(id)
 	if err != nil {
 		return nil, err
 	}
+	account.Passphrase = decryptedPassphrase
 
-	return decryptedData, nil
+	return account, nil
 }
 
 func (service *AccountsService) GetPassphrase(
@@ -77,17 +66,13 @@ func (service *AccountsService) CreateAccount(
 		return nil, err
 	}
 
-	strengthScore, err := strength.CalculateStrength(body.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedData, err := generateEncryptedData(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return service.repository.CreateAccount(encryptedData, strengthScore)
+	return service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
+		Platform:   body.Platform,
+		Identifier: body.Identifier,
+		Passphrase: body.Passphrase,
+		Url:        body.Url,
+		Notes:      body.Notes,
+	})
 }
 
 func (service *AccountsService) UpdateAccount(
@@ -117,107 +102,4 @@ func (service *AccountsService) DeleteAccount(
 	id string,
 ) error {
 	return service.repository.DeleteAccount(id)
-}
-
-func generateEncryptedData(body *schemas.RequestAccountsUpsert) (*schemas.RequestAccountsUpsert, error) {
-	encryptedPlatform, err := encrypt.Encrypt(body.Platform)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedIdentifier, err := encrypt.Encrypt(body.Identifier)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedUrl, err := encrypt.Encrypt(body.Url)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedPassphrase, err := encrypt.Encrypt(body.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedNotes, err := encrypt.Encrypt(body.Notes)
-	if err != nil {
-		return nil, err
-	}
-
-	return &schemas.RequestAccountsUpsert{
-		Platform:   encryptedPlatform,
-		Identifier: encryptedIdentifier,
-		Passphrase: encryptedPassphrase,
-		Url:        encryptedUrl,
-		Notes:      encryptedNotes,
-	}, nil
-}
-
-func generateDectyptedData(body *schemas.ResponseAccountDetails) (*schemas.ResponseAccountDetails, error) {
-	decryptedPlatform, err := encrypt.Decrypt(body.Platform)
-	if err != nil {
-		return nil, err
-	}
-
-	decryptedIdentifier, err := encrypt.Decrypt(body.Identifier)
-	if err != nil {
-		return nil, err
-	}
-
-	decryptedPassphrase, err := encrypt.Decrypt(body.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	decryptedUrl, err := encrypt.Decrypt(body.Url)
-	if err != nil {
-		return nil, err
-	}
-
-	decryptedNotes, err := encrypt.Decrypt(body.Notes)
-	if err != nil {
-		return nil, err
-	}
-
-	return &schemas.ResponseAccountDetails{
-		Id:         body.Id,
-		Platform:   decryptedPlatform,
-		Identifier: decryptedIdentifier,
-		Url:        decryptedUrl,
-		Passphrase: decryptedPassphrase,
-		Notes:      decryptedNotes,
-		Strength:   body.Strength,
-	}, nil
-}
-
-func generateDecryptedListData(body *schemas.ResponseAccount) (*schemas.ResponseAccount, error) {
-	decryptedPlatform, err := encrypt.Decrypt(body.Platform)
-	if err != nil {
-		return nil, err
-	}
-
-	decryptedIdentifier, err := encrypt.Decrypt(body.Identifier)
-	if err != nil {
-		return nil, err
-	}
-
-	decryptedUrl, err := encrypt.Decrypt(body.Url)
-	if err != nil {
-		return nil, err
-	}
-
-	decryptedNotes, err := encrypt.Decrypt(body.Notes)
-	if err != nil {
-		return nil, err
-	}
-
-	return &schemas.ResponseAccount{
-		Id:         body.Id,
-		Platform:   decryptedPlatform,
-		Identifier: decryptedIdentifier,
-		Url:        decryptedUrl,
-		Notes:      decryptedNotes,
-		Strength:   body.Strength,
-	}, nil
 }

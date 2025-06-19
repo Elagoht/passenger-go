@@ -8,14 +8,12 @@ import (
 )
 
 type TransferService struct {
-	accountsService *AccountsService
-	repository      *repositories.AccountsRepository
+	repository *repositories.AccountsRepository
 }
 
 func NewTransferService() *TransferService {
 	return &TransferService{
-		accountsService: NewAccountsService(),
-		repository:      repositories.NewAccountsRepository(),
+		repository: repositories.NewAccountsRepository(),
 	}
 }
 
@@ -31,7 +29,13 @@ func (service *TransferService) Import(
 	failedOnes := []schemas.RequestAccountsUpsert{}
 
 	for _, account := range accounts {
-		_, err := service.accountsService.CreateAccount(&account)
+		_, err := service.repository.CreateAccount(&schemas.RequestAccountsUpsert{
+			Platform:   account.Platform,
+			Identifier: account.Identifier,
+			Passphrase: account.Passphrase,
+			Url:        account.Url,
+			Notes:      account.Notes,
+		})
 		if err != nil {
 			failedOnes = append(failedOnes, account)
 			continue
