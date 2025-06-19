@@ -10,22 +10,22 @@
 <form action="/create" method="post">
   <label>
     <span>Platform</span>
-    <input type="text" name="platform" value="{{ .Account.Platform }}" />
+    <input required type="text" name="platform" value="{{ .Account.Platform }}" />
   </label>
 
   <label>
     <span>Identifier</span>
-    <input type="text" name="identifier" value="{{ .Account.Identifier }}" />
+    <input required type="text" name="identifier" value="{{ .Account.Identifier }}" />
   </label>
 
   <label>
     <span>URL</span>
-    <input type="text" name="url" value="{{ .Account.Url }}" />
+    <input required type="url" name="url" value="{{ .Account.Url }}" />
   </label>
 
   <label>
     <span>Passphrase</span>
-    <input type="password" autocomplete="off" name="passphrase" value="{{ .Account.Passphrase }}" />
+    <input required type="password" autocomplete="off" name="passphrase" value="{{ .Account.Passphrase }}" />
   </label>
 
   <label>
@@ -33,6 +33,6 @@
     <textarea name="notes">{{ .Account.Notes }}</textarea>
   </label>
 
-  <button type="submit">Create</button>
+  <button type="submit" class="button-success">Create</button>
 </form>
 {{ end }}

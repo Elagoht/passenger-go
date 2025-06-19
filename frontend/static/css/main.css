@@ -72,21 +72,21 @@ button:hover {
 }
 
 .button-danger {
-  background-color: #744548;
+  background-color: #b44336;
   color: #f4cdd6;
 }
 
 .button-danger:hover {
-  background-color: #9d5d60;
+  background-color: #c45346;
 }
 
 .button-success {
-  background-color: #457448;
+  background-color: #45b448;
   color: #cdf4d6;
 }
 
 .button-success:hover {
-  background-color: #5d9d60;
+  background-color: #5db460;
 }
 
 .button-group {

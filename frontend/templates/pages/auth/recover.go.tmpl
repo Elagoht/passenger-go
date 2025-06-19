@@ -22,17 +22,17 @@
 
   <label>
     <span>Recovery Key</span>
-    <input type="password" autocomplete="off" name="recoveryKey" />
+    <input required type="password" autocomplete="off" name="recoveryKey" />
   </label>
 
   <label>
     <span>New Passphrase</span>
-    <input type="password" autocomplete="off" name="newPassphrase" />
+    <input required type="password" autocomplete="off" name="newPassphrase" />
   </label>
 
   <label>
     <span>Confirm New Passphrase</span>
-    <input type="password" autocomplete="off" name="confirmNewPassphrase" />
+    <input required type="password" autocomplete="off" name="confirmNewPassphrase" />
   </label>
 
   {{ if .Error }}

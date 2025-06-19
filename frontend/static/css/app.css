@@ -1,5 +1,5 @@
 main {
-  max-width: 48rem;
+  max-width: 64rem;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -21,7 +21,7 @@ header {
 
 header > div {
   width: 100%;
-  max-width: 48rem;
+  max-width: 64rem;
   padding: 0.5rem;
   display: flex;
   justify-content: space-between;

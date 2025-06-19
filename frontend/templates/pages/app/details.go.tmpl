@@ -14,22 +14,22 @@
 <form action="/accounts/{{ .Account.Id }}" method="post">
   <label>
     <span>Platform</span>
-    <input type="text" name="platform" value="{{ .Account.Platform }}" />
+    <input required type="text" name="platform" value="{{ .Account.Platform }}" />
   </label>
 
   <label>
     <span>Identifier</span>
-    <input type="text" name="identifier" value="{{ .Account.Identifier }}" />
+    <input required type="text" name="identifier" value="{{ .Account.Identifier }}" />
   </label>
 
   <label>
     <span>URL</span>
-    <input type="text" name="url" value="{{ .Account.Url }}" />
+    <input required type="url" name="url" value="{{ .Account.Url }}" />
   </label>
 
   <label>
     <span>Passphrase</span>
-    <input type="password" autocomplete="off" name="passphrase" value="{{ .Account.Passphrase }}" />
+    <input required type="password" autocomplete="off" name="passphrase" value="{{ .Account.Passphrase }}" />
   </label>
 
   <label>
@@ -42,7 +42,7 @@
 
 <h2>Danger Zone</h2>
 
-<button type="button" class="danger" onclick="deleteAccount()">Delete</button>
+<button type="button" class="button-danger" onclick="deleteAccount()">Delete</button>
 {{ end }}
 
 {{ define "script" }}

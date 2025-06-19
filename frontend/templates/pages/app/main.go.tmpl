@@ -2,81 +2,57 @@
 {{ template "app" . }}{{ end }}
 {{ define "page" }}
 <form onsubmit="return false;">
-  <input placeholder="Search" type="search" oninput="searchAccounts(this.value)" />
+  <input required placeholder="Search accounts..." type="search" oninput="searchAccounts(this.value)" />
 </form>
 
-<table>
-  <thead>
-    <tr>
-      <th>Platform</th>
-      <th>Identifier</th>
-      <th>Passphrase</th>
-    </tr>
-  </thead>
-
-  <tbody>
-  </tbody>
-</table>
+<div id="accounts-grid"></div>
 {{ end }}
 {{ define "script" }}
+<script src="/static/components/account-card.js"></script>
 <script>
 
   const accounts = {{ .Accounts }};
+  let currentQuery = '';
 
   function searchAccounts(query) {
+    currentQuery = query;
     const filteredAccounts = accounts.filter(account =>
       account.platform.toLowerCase().includes(query.toLowerCase()) ||
       account.identifier.toLowerCase().includes(query.toLowerCase()) ||
-      account.notes.toLowerCase().includes(query.toLowerCase())
+      (account.notes && account.notes.toLowerCase().includes(query.toLowerCase()))
     );
     renderAccounts(filteredAccounts, query);
   }
 
   function renderAccounts(accounts, query = '') {
-    const tbody = document.querySelector('tbody');
-    tbody.innerHTML = '';
+    const grid = document.getElementById('accounts-grid');
+    grid.innerHTML = '';
+    
+    // Apply grid styling
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(16rem, 1fr))';
+    grid.style.gap = '1rem';
+    
     for (const account of accounts) {
-      const row = document.createElement('tr');
-
-      const platformCell = document.createElement('td');
-      const platformButton = document.createElement('button');
-      platformButton.type = 'button';
-      platformButton.innerHTML = highlightText(account.platform, query);
-      platformButton.addEventListener('click', () => window.location.href = `/accounts/${account.id}`);
-      platformCell.appendChild(platformButton);
-      row.appendChild(platformCell);
-
-      const identifierCell = document.createElement('td');
-      const identifierButton = document.createElement('button');
-      identifierButton.type = 'button';
-      identifierButton.innerHTML = highlightText(account.identifier, query);
-      identifierButton.addEventListener('click', () => copyText(account.identifier));
-      identifierCell.appendChild(identifierButton);
-      row.appendChild(identifierCell);
-
-      const passphraseCell = document.createElement('td');
-      const passphraseButton = document.createElement('button');
-      passphraseButton.type = 'button';
-      passphraseButton.textContent = 'Copy';
-      passphraseButton.addEventListener('click', () => copyPassphrase(account.id));
-      passphraseCell.appendChild(passphraseButton);
-      row.appendChild(passphraseCell);
-
-      tbody.appendChild(row);
+      const card = document.createElement('account-card');
+      card.setAttribute('data-account', JSON.stringify(account));
+      card.setAttribute('data-query', query);
+      grid.appendChild(card);
     }
   }
 
-  function highlightText(text, query) {
-    if (!query) return text;
-    const regex = new RegExp(`(${query})`, 'gi');
-    return text.replace(regex, '<mark>$1</mark>');
-  }
+  // Event listeners for web component events
+  document.addEventListener('copy-passphrase', (event) => {
+    copyPassphrase(event.detail.id);
+  });
 
-  renderAccounts(accounts);
+  document.addEventListener('copy-text', (event) => {
+    copyText(event.detail.text);
+  });
 
   // Simple LRU Cache implementation
   class LRUCache {
-    constructor(limit = 10) {
+    constructor(limit = 100) {
       this.limit = limit;
       this.cache = new Map();
     }
@@ -126,6 +102,9 @@
       document.body.removeChild(textarea);
     });
   }
+
+  // Initial render
+  renderAccounts(accounts);
 
 </script>
 {{ end }}
