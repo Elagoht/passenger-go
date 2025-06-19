@@ -11,7 +11,7 @@
 <blockquote class="error">{{ .Error }}</blockquote>
 {{ end }}
 
-<form action="/accounts/{{ .Account.Id }}" method="post">
+<form action="/accounts/{{ .Account.Id }}" method="post" autocomplete="off" data-form-type="other">
   <label>
     <span>Platform</span>
     <input required type="text" name="platform" value="{{ .Account.Platform }}" />
@@ -27,12 +27,14 @@
 
   <label>
     <span>URL</span>
-    <input required type="url" name="url" value="{{ .Account.Url }}" />
+    <input required type="url" autocomplete="off" data-form-type="other" name="url" value="{{ .Account.Url }}" list="urls-list" />
+    <datalist id="urls-list">
+    </datalist>
   </label>
 
   <label>
     <span>Passphrase</span>
-    <input required type="password" autocomplete="off" name="passphrase" value="{{ .Account.Passphrase }}" />
+    <input required type="text" autocomplete="off" name="passphrase" value="{{ .Account.Passphrase }}" data-form-type="other" style="-webkit-text-security: disc; text-security: disc;" />
   </label>
 
   <label>
@@ -49,6 +51,7 @@
 {{ end }}
 
 {{ define "script" }}
+<script src="/static/components/url-completion.js"></script>
 <script>
   function deleteAccount() {
     if (confirm('Are you sure you want to delete this account?')) {
