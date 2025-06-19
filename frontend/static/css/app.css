@@ -128,3 +128,7 @@ a:hover {
 ol {
   padding-left: 2rem;
 }
+
+textarea {
+  max-width: 100%;
+}
