@@ -43,9 +43,12 @@ var characterSetScores = map[string]int{
 func getCharacterSetScore(passphrase string) int {
 	score := 0
 	for characterSet, characterSetScore := range characterSetScores {
-		if strings.Contains(passphrase, characterSet) {
-			score += characterSetScore
-			continue
+		// Check if any character from the character set is present in the passphrase
+		for _, char := range characterSet {
+			if strings.ContainsRune(passphrase, char) {
+				score += characterSetScore
+				break // Found at least one character from this set, move to next set
+			}
 		}
 	}
 	return score
