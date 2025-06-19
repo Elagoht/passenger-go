@@ -104,6 +104,25 @@ header nav #nav-dropdown a:hover {
   background-color: #2e2e3e;
 }
 
+header nav #nav-dropdown .logout-btn {
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: 0;
+  text-align: left;
+  background-color: transparent;
+  border: none;
+  color: #e74c3c;
+  font: inherit;
+  width: 100%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+header nav #nav-dropdown .logout-btn:hover {
+  background-color: rgba(231, 76, 60, 0.1);
+  color: #c0392b;
+}
+
 form {
   display: flex;
   flex-direction: column;

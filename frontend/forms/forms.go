@@ -316,3 +316,19 @@ func (controller *FormsController) FormRecover(
 		"Message": "Passphrase recovered successfully",
 	})
 }
+
+func (controller *FormsController) FormLogout(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	// Clear the token cookie by setting it with MaxAge of -1
+	http.SetCookie(writer, &http.Cookie{
+		Name:   "token",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+
+	// Redirect to login page
+	http.Redirect(writer, request, "/login", http.StatusFound)
+}

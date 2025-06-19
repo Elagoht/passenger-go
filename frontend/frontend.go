@@ -58,5 +58,6 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Post("/create", controller.formsController.FormAccountCreate)
 		router.Post("/import", controller.formsController.FormImport)
 		router.Post("/change-password", controller.formsController.FormChangePassword)
+		router.Post("/logout", controller.formsController.FormLogout)
 	})
 }
