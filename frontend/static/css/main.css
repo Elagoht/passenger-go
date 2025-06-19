@@ -2,195 +2,104 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
-}
-
-:root {
-  --accent-bg: AccentColor;
-  --accent-text: AccentColorText;
-  --active-link: ActiveText;
-  --button-border: ButtonBorder;
-  --button-bg: AccentColor;
-  --button-text: AccentColorText;
-  --canvas-bg: Canvas;
-  --canvas-text: CanvasText;
-  --field-bg: Field;
-  --field-text: FieldText;
-  --disabled-text: GrayText;
-  --highlight-bg: Highlight;
-  --highlight-text: HighlightText;
-  --link-text: LinkText;
-  --mark-bg: Mark;
-  --mark-text: MarkText;
-  --selected-bg: SelectedItem;
-  --selected-text: SelectedItemText;
-  --visited-link: VisitedText;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent-bg: AccentColorText;
-    --accent-text: AccentColor;
-    --canvas-bg: CanvasText;
-    --canvas-text: Canvas;
-    --field-bg: FieldText;
-    --field-text: Field;
-    --highlight-bg: HighlightText;
-    --highlight-text: Highlight;
-    --mark-bg: MarkText;
-    --mark-text: Mark;
-    --selected-bg: SelectedItemText;
-    --selected-text: SelectedItem;
-    --button-border: GrayText;
-  }
+  font-family: "Lato", system-ui, -apple-system, Roboto, sans-serif;
 }
 
 body {
-  background-color: var(--canvas-bg);
-  color: var(--canvas-text);
-  line-height: 1.5;
+  background-color: #333446;
+  color: #eaefef;
+}
+
+/* Typography */
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+}
+
+a {
+  color: #89b4fa;
+  text-decoration: none;
+  text-underline-offset: 0.25rem;
+  transition: all 0.2s ease-out;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.125rem;
+}
+
+/* Form */
+label:has(span) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+input,
+textarea {
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
 }
 
 .button,
 button {
-  background-color: var(--button-bg);
-  color: var(--button-text) !important;
-  border: 1px solid var(--accent-bg);
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
+  background-color: #666baa;
+  color: #cdd6f4;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+  transition: all 0.2s ease-out;
   cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  text-decoration: none;
+  text-align: center;
+  font-size: 0.875rem;
+  text-decoration: none !important;
 }
 
 .button:hover,
 button:hover {
-  background-color: color-mix(
-    in srgb,
-    var(--button-bg) 80%,
-    var(--canvas-bg) 20%
-  );
-  color: var(--button-text);
+  background-color: #8589cf;
 }
 
-.button:focus,
-button:focus {
-  outline: 2px solid var(--highlight-bg);
-  outline-offset: 2px;
+.button-danger {
+  background-color: #744548;
+  color: #f4cdd6;
 }
 
-.button:active,
-button:active {
-  background-color: var(--highlight-bg);
-  color: var(--highlight-text);
-  border-color: var(--highlight-bg);
+.button-danger:hover {
+  background-color: #9d5d60;
 }
 
-.button:disabled,
-button:disabled {
-  background-color: color-mix(
-    in srgb,
-    var(--button-bg) 50%,
-    var(--canvas-bg) 50%
-  );
-  color: var(--disabled-text);
-  border-color: var(--button-border);
-  cursor: not-allowed;
-  opacity: 0.7;
+.button-success {
+  background-color: #457448;
+  color: #cdf4d6;
 }
 
-input,
-textarea,
-select {
-  background-color: var(--field-bg);
-  color: var(--field-text);
-  border: 1px solid var(--button-border);
-  border-radius: 4px;
-  padding: 0.5rem;
-  font-size: 1rem;
-  transition: border-color 0.2s;
+.button-success:hover {
+  background-color: #5d9d60;
 }
 
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: var(--highlight-bg);
-  outline: 2px solid var(--highlight-bg);
-  outline-offset: 1px;
+.button-group {
+  width: 100%;
+  display: grid;
+  gap: 0.5rem;
 }
 
-a {
-  color: var(--link-text);
-  text-decoration: none;
-  transition: color 0.2s;
+.grid-2 {
+  grid-template-columns: 1fr 1fr;
 }
 
-a:hover {
-  color: var(--active-link);
-  text-decoration: underline;
-}
-
-a:focus {
-  outline: 2px solid var(--highlight-bg);
-  outline-offset: 2px;
-}
-
-a:active {
-  color: var(--active-link);
-}
-
-a:visited {
-  color: var(--visited-link);
-}
-
-a.button {
-  text-decoration: none;
-}
-
-input[type="checkbox"]:checked {
-  background-color: var(--selected-bg);
-  color: var(--selected-text);
-}
-
-mark {
-  background-color: var(--mark-bg);
-  color: var(--mark-text);
-  padding: 0.1rem 0.3rem;
-  border-radius: 2px;
-}
-
-:disabled {
-  color: var(--disabled-text);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.content {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 1rem;
-  background-color: var(--canvas-bg);
-  color: var(--canvas-text);
-}
-
-@media (max-width: 600px) {
-  button,
-  input,
-  textarea,
-  select {
-    font-size: 0.9rem;
-    padding: 0.4rem 0.8rem;
-  }
-}
-
-label:has(span) {
-  display: flex;
-  flex-direction: column;
-}
-
+/* Messages */
 blockquote {
   color: var(--button-text);
   padding: 0.5rem;

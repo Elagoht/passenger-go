@@ -4,12 +4,15 @@
 <link rel="stylesheet" href="/static/css/auth.css" />
 {{ end }}
 {{ define "content" }}
-<figure>
-  <img src="/static/img/passenger.png" width="100" height="100" alt="Passenger" />
-</figure>
+<main>
+  <figure>
+    <img src="/static/img/passenger.png" width="100" height="100" alt="Passenger" />
+  </figure>
 
-<h1>Passenger</h1>
+  <h1>Passenger</h1>
 
-<small>Self-Hosted Passphrase Manager</small>
-{{ template "page" . }}
+  <small>Self-Hosted Passphrase Manager</small>
+
+  {{ template "page" . }}
+</main>
 {{ end }}

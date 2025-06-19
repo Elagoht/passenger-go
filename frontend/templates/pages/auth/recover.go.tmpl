@@ -39,6 +39,10 @@
   <small>{{ .Error }}</small>
   {{ end }}
 
-  <button type="submit">Recover</button>
+  <div class="button-group grid-2">
+    <a class="button" href="/login">Back</a>
+
+    <button class="button-success" type="submit">Recover</button>
+  </div>
 </form>
 {{ end }}
