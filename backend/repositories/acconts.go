@@ -248,3 +248,28 @@ func (repository *AccountsRepository) ExportAccountsData() ([]schemas.RequestAcc
 
 	return accounts, nil
 }
+
+func (repository *AccountsRepository) GetUniqueIdentifiers() ([]string, error) {
+	statement, err := repository.database.Prepare(QueryUniqueIdentifiers)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := statement.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var identifiers []string
+	for rows.Next() {
+		var identifier string
+		err = rows.Scan(&identifier)
+		if err != nil {
+			return nil, err
+		}
+		identifiers = append(identifiers, identifier)
+	}
+
+	return identifiers, nil
+}

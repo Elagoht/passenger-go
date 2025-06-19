@@ -103,3 +103,7 @@ func (service *AccountsService) DeleteAccount(
 ) error {
 	return service.repository.DeleteAccount(id)
 }
+
+func (service *AccountsService) GetUniqueIdentifiers() ([]string, error) {
+	return service.repository.GetUniqueIdentifiers()
+}

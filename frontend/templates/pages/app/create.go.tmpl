@@ -15,7 +15,12 @@
 
   <label>
     <span>Identifier</span>
-    <input required type="text" name="identifier" value="{{ .Account.Identifier }}" />
+    <input required type="text" name="identifier" value="{{ .Account.Identifier }}" list="identifiers-list" />
+    <datalist id="identifiers-list">
+      {{ range .Identifiers }}
+      <option value="{{ . }}">
+      {{ end }}
+    </datalist>
   </label>
 
   <label>

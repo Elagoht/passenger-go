@@ -31,6 +31,7 @@ func (controller *AccountsController) MountAccountsRouter(router *chi.Mux) {
 	controller.accountsRouter.Mux().Use(guards.JWTGuard)
 
 	controller.accountsRouter.Get("/", controller.GetAccounts)
+	controller.accountsRouter.Get("/identifiers", controller.GetUniqueIdentifiers)
 	controller.accountsRouter.Get("/{id}", controller.GetPassphrase)
 	controller.accountsRouter.Post("/", controller.CreateAccount)
 	controller.accountsRouter.Put("/{id}", controller.UpdateAccount)
@@ -49,6 +50,18 @@ func (controller *AccountsController) GetAccounts(
 	}
 
 	return json.NewEncoder(writer).Encode(accounts)
+}
+
+func (controller *AccountsController) GetUniqueIdentifiers(
+	writer http.ResponseWriter,
+	request *http.Request,
+) error {
+	identifiers, err := controller.service.GetUniqueIdentifiers()
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(writer).Encode(identifiers)
 }
 
 func (controller *AccountsController) GetPassphrase(

@@ -2,8 +2,8 @@ package repositories
 
 const (
 	QueryAccountCreate = `
-	INSERT INTO accounts (platform, identifier, passphrase, url, notes)
-	VALUES (?, ?, ?, ?, ?)
+	INSERT INTO accounts (platform, identifier, passphrase, url, notes, strength)
+	VALUES (?, ?, ?, ?, ?, ?)
 	`
 	QueryAccounts = `
 	SELECT id, platform, identifier, url, notes, strength
@@ -37,5 +37,11 @@ const (
 	QueryAccountsExport = `
 	SELECT platform, identifier, passphrase, url, notes
 	FROM accounts
+	`
+	QueryUniqueIdentifiers = `
+	SELECT DISTINCT identifier
+	FROM accounts
+	WHERE identifier IS NOT NULL AND identifier != ''
+	ORDER BY identifier
 	`
 )

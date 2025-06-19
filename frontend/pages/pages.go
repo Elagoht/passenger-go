@@ -49,8 +49,14 @@ func (controller *PagesController) RouteAccountDetails(
 		return
 	}
 
+	identifiers, err := controller.accountsService.GetUniqueIdentifiers()
+	if err != nil {
+		identifiers = []string{}
+	}
+
 	controller.template.Render(writer, "app", "details", map[string]any{
-		"Account": account,
+		"Account":     account,
+		"Identifiers": identifiers,
 	})
 }
 
@@ -58,7 +64,14 @@ func (controller *PagesController) RouteAccountCreate(
 	writer http.ResponseWriter,
 	request *http.Request,
 ) {
-	controller.template.Render(writer, "app", "create", nil)
+	identifiers, err := controller.accountsService.GetUniqueIdentifiers()
+	if err != nil {
+		identifiers = []string{}
+	}
+
+	controller.template.Render(writer, "app", "create", map[string]any{
+		"Identifiers": identifiers,
+	})
 }
 
 func (controller *PagesController) RouteImport(
