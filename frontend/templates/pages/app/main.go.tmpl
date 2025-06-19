@@ -5,17 +5,6 @@
   <input placeholder="Search" type="search" oninput="searchAccounts(this.value)" />
 </form>
 
-<nav>
-  <button onclick="toggleMenu()" style="width: fit-content;">⚙️</button>
-  <a href="/create">New Account</a>
-</nav>
-
-<nav id="menu" style="display: none;">
-  <a href="/change-password">Change Password</a>
-  <a href="/export">Export</a>
-  <a href="/import">Import</a>
-</nav>
-
 <table>
   <thead>
     <tr>
@@ -31,7 +20,6 @@
 {{ end }}
 {{ define "script" }}
 <script>
-  let menuOpen = false;
 
   const accounts = {{ .Accounts }};
 
@@ -139,9 +127,5 @@
     });
   }
 
-  function toggleMenu() {
-    menuOpen = !menuOpen;
-    document.getElementById('menu').style.display = menuOpen ? 'flex' : 'none';
-  }
 </script>
 {{ end }}

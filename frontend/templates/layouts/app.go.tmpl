@@ -6,12 +6,22 @@
 {{ define "title" }}Passenger Passphrase Manager{{ end }}
 {{ define "content" }}
 <header>
-  <a href="/">
-    <figure>
-      <img src="/static/img/passenger.png" width="64" height="64" alt="Passenger Passphrase Manager" />
-    </figure>
+  <div>
+    <a href="/">
+      <img src="/static/img/passenger.png" width="48" height="48" alt="Passenger Passphrase Manager" />
 
-    <h1>Passenger</h1>
-  </a>
+      <h1>Passenger</h1>
+    </a>
+
+    <nav>
+      <a href="/create">New Account</a>
+      <a href="/change-password">Master Passphrase</a>
+      <a href="/export">Export</a>
+      <a href="/import">Import</a>
+    </nav>
+  </nav>
 </header>
-{{ template "page" . }}{{ end }}
+<main>
+{{ template "page" . }}
+</main>
+{{ end }}
