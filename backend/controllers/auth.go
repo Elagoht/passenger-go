@@ -30,16 +30,19 @@ func NewAuthController() *AuthController {
 }
 
 func (controller *AuthController) MountAuthRouter(router *chi.Mux) {
+	// Public routes
 	controller.publicRouter.Get("/status", controller.Status)
 	controller.publicRouter.Post("/register", controller.RegisterUser)
 	controller.publicRouter.Post("/validate", controller.CompleteRegistration)
 	controller.publicRouter.Post("/login", controller.LoginUser)
 
+	// Protected routes with JWT guard
 	controller.privateRouter.Mux().Use(guards.JWTGuard)
-	controller.privateRouter.Patch("/passphrase", controller.UpdatePassphrase)
+	controller.privateRouter.Patch("/", controller.UpdatePassphrase)
 
+	// Mount both routers to the same path
 	router.Mount("/auth", controller.publicRouter.Mux())
-	router.Mount("/auth", controller.privateRouter.Mux())
+	router.Mount("/auth/passphrase", controller.privateRouter.Mux())
 }
 
 func (controller *AuthController) Status(

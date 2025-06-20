@@ -56,6 +56,7 @@ func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 		router.Get("/import", controller.pagesController.RouteImport)
 		router.Get("/export", controller.pagesController.RouteExport)
 		router.Get("/change-password", controller.pagesController.RouteChangePassword)
+		router.Get("/api-docs", controller.pagesController.RouteApiDocs)
 
 		router.Post("/accounts/{id}", controller.formsController.FormAccountDetails)
 		router.Post("/create", controller.formsController.FormAccountCreate)

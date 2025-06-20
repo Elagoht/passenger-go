@@ -213,7 +213,7 @@ section {
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: calc(100vh - 15rem);
+  min-height: calc(50vh + 5rem);
   gap: 1rem;
 }
 
@@ -262,4 +262,12 @@ section p {
 
 #api-docs > section > div {
   width: 100%;
+}
+
+#api-docs > section > p {
+  color: #a6adc8;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  max-width: none;
 }

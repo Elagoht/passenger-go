@@ -24,6 +24,7 @@
         <a href="/change-password">Master Passphrase</a>
         <a href="/export">Export</a>
         <a href="/import">Import</a>
+        <a href="/api-docs">API Docs</a>
         <form method="post" action="/logout" style="display: block; margin: 0;">
           <button type="submit" class="logout-btn">Logout</button>
         </form>
@@ -39,11 +40,11 @@
 document.addEventListener('DOMContentLoaded', function() {
   const navToggle = document.getElementById('nav-toggle');
   const navDropdown = document.getElementById('nav-dropdown');
-  
+
   navToggle.addEventListener('click', function() {
     navDropdown.classList.toggle('open');
   });
-  
+
   // Close dropdown when clicking outside
   document.addEventListener('click', function(event) {
     if (!navToggle.contains(event.target) && !navDropdown.contains(event.target)) {

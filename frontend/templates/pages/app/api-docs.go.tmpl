@@ -1,0 +1,352 @@
+{{ define "main" }}
+{{ template "app" . }}{{ end }}
+{{ define "page" }}
+<section>
+  <h1>API Documentation</h1>
+  <p>Complete API reference for Passenger-Go. All endpoints return JSON responses and require authentication via JWT token in cookies.</p>
+</section>
+
+<div id="api-docs"></div>
+{{ end }}
+{{ define "script" }}
+<script src="/static/components/api-endpoint.js"></script>
+<script>
+  const apiPrefix = "/api";
+  const apiEndpoints = [
+    {
+      controller: "Authentication",
+      description: "Initialize the application and get logged in user",
+      prefix: "/auth",
+      endpoints: [
+        {
+          method: "GET",
+          path: "/status",
+          description: "Check if the application is initialized",
+          requireInit: false,
+          requireAuth: false,
+          response: {
+            type: "application/json",
+            schema: { initialized: "boolean" },
+            example: { initialized: true },
+          },
+        },
+        {
+          method: "POST",
+          path: "/register",
+          description: "Initialize the application. Design to use by one user.",
+          requireInit: false,
+          requireAuth: false,
+          request: {
+            type: "application/json",
+            schema: { passphrase: "string" },
+            example: { passphrase: "your-secure-passphrase" },
+          },
+          response: {
+            type: "application/json",
+            schema: { recovery: "string" },
+            example: { recovery: "xK9#mP2$vL5@nR8..." },
+          },
+        },
+        {
+          method: "POST",
+          path: "/validate",
+          description: "Complete the user registration. Unless this request is called, register endpoint will generate another recovery key.",
+          requireInit: false,
+          requireAuth: false,
+          request: {
+            type: "application/json",
+            schema: { recovery: "string" },
+            example: { recovery: "xK9#mP2$vL5@nR8..." },
+          },
+        },
+        {
+          method: "POST",
+          path: "/login",
+          description: "Login the user",
+          requireInit: true,
+          requireAuth: false,
+          request: {
+            type: "application/json",
+            schema: { passphrase: "string" },
+            example: { passphrase: "your-secure-passphrase" },
+          },
+          response: {
+            type: "application/json",
+            schema: { token: "string" },
+            example: { token: "jwt-token-here" },
+          },
+        },
+        {
+          method: "PATCH",
+          path: "/passphrase",
+          description: "Update master passphrase",
+          requireInit: true,
+          requireAuth: true,
+          request: {
+            type: "application/json",
+            schema: { passphrase: "string" },
+            example: { passphrase: "new-secure-passphrase" },
+          },
+        },
+      ],
+    },
+    {
+      controller: "Accounts",
+      description: "Manage user accounts and passphrases",
+      prefix: "/accounts",
+      endpoints: [
+        {
+          method: "GET",
+          path: "",
+          description: "Get all accounts",
+          requireInit: true,
+          requireAuth: true,
+          response: {
+            type: "application/json",
+            schema: [
+              {
+                id: "string",
+                platform: "string",
+                identifier: "string",
+                url: "string",
+                notes: "string",
+                strength: "number"
+              }
+            ],
+            example: [
+              {
+                id: "1",
+                platform: "GitHub",
+                identifier: "user@example.com",
+                url: "https://github.com",
+                notes: "Personal account",
+                strength: 85
+              }
+            ],
+          },
+        },
+        {
+          method: "GET",
+          path: "/identifiers",
+          description: "Get unique identifiers for autocomplete",
+          requireInit: true,
+          requireAuth: true,
+          response: {
+            type: "application/json",
+            schema: ["string"],
+            example: ["user@example.com", "admin@company.com"],
+          },
+        },
+        {
+          method: "GET",
+          path: "/{id}",
+          description: "Get account passphrase by ID",
+          requireInit: true,
+          requireAuth: true,
+          response: {
+            type: "application/json",
+            schema: "string",
+            example: "decrypted-passphrase",
+          },
+        },
+        {
+          method: "POST",
+          path: "",
+          description: "Create a new account",
+          requireInit: true,
+          requireAuth: true,
+          request: {
+            type: "application/json",
+            schema: {
+              platform: "string",
+              identifier: "string",
+              passphrase: "string",
+              url: "string",
+              notes: "string (optional)",
+              strength: "string (optional)"
+            },
+            example: {
+              platform: "GitHub",
+              identifier: "user@example.com",
+              passphrase: "secure-password",
+              url: "https://github.com",
+              notes: "Personal account",
+              strength: "strong"
+            },
+          },
+          response: {
+            type: "application/json",
+            schema: {
+              id: "string",
+              platform: "string",
+              identifier: "string",
+              url: "string",
+              notes: "string",
+              strength: "number"
+            },
+            example: {
+              id: "1",
+              platform: "GitHub",
+              identifier: "user@example.com",
+              url: "https://github.com",
+              notes: "Personal account",
+              strength: 85
+            },
+          },
+        },
+        {
+          method: "PUT",
+          path: "/{id}",
+          description: "Update an existing account",
+          requireInit: true,
+          requireAuth: true,
+          request: {
+            type: "application/json",
+            schema: {
+              platform: "string",
+              identifier: "string",
+              passphrase: "string",
+              url: "string",
+              notes: "string (optional)",
+              strength: "string (optional)"
+            },
+            example: {
+              platform: "GitHub",
+              identifier: "user@example.com",
+              passphrase: "new-secure-password",
+              url: "https://github.com",
+              notes: "Updated personal account",
+              strength: "strong"
+            },
+          },
+        },
+        {
+          method: "DELETE",
+          path: "/{id}",
+          description: "Delete an account",
+          requireInit: true,
+          requireAuth: true,
+        },
+      ],
+    },
+    {
+      controller: "Transfer",
+      description: "Import and export account data",
+      prefix: "/transfer",
+      endpoints: [
+        {
+          method: "POST",
+          path: "/import",
+          description: "Import accounts from CSV file",
+          requireInit: true,
+          requireAuth: true,
+          request: {
+            type: "multipart/form-data",
+            schema: { file: "file - CSV file from Firefox or Chromium" },
+            example: "Form data with CSV file",
+          },
+          response: {
+            type: "application/json",
+            schema: {
+              imported: "number",
+              skipped: "number",
+              errors: "array"
+            },
+            example: {
+              imported: 10,
+              skipped: 2,
+              errors: ["Invalid format for account 3"]
+            },
+          },
+        },
+        {
+          method: "POST",
+          path: "/export",
+          description: "Export all accounts to CSV",
+          requireInit: true,
+          requireAuth: true,
+          response: {
+            type: "text/csv",
+            schema: "CSV file download",
+            example: "CSV file download",
+          },
+        },
+      ],
+    },
+  ];
+
+  function renderApiDocs() {
+    const container = document.getElementById('api-docs');
+    container.innerHTML = '';
+
+    // Render each controller section
+    apiEndpoints.forEach(controller => {
+      const controllerSection = document.createElement('section');
+      controllerSection.innerHTML = `
+        <h2>${controller.controller}</h2>
+        <p>${controller.description}</p>
+      `;
+      
+      const endpointsContainer = document.createElement('div');
+      endpointsContainer.style.display = 'flex';
+      endpointsContainer.style.flexDirection = 'column';
+      endpointsContainer.style.gap = '1rem';
+      
+      controller.endpoints.forEach(endpoint => {
+        const endpointElement = document.createElement('api-endpoint');
+        const endpointData = {
+          controller: controller.controller,
+          method: endpoint.method,
+          path: apiPrefix + controller.prefix + endpoint.path,
+          description: endpoint.description,
+          auth: endpoint.requireAuth,
+          init: endpoint.requireInit,
+          request: endpoint.request,
+          response: endpoint.response,
+          statusCodes: getStatusCodes(endpoint)
+        };
+        endpointElement.setAttribute('data-endpoint', JSON.stringify(endpointData));
+        endpointsContainer.appendChild(endpointElement);
+      });
+      
+      controllerSection.appendChild(endpointsContainer);
+      container.appendChild(controllerSection);
+    });
+  }
+
+  function getStatusCodes(endpoint) {
+    const baseCodes = [];
+    
+    if (endpoint.requireAuth) {
+      baseCodes.push({ code: 401, description: "Invalid or missing token" });
+    }
+    
+    if (endpoint.requireInit) {
+      baseCodes.push({ code: 403, description: "Application not initialized" });
+    }
+    
+    // Add success codes based on method
+    if (endpoint.method === 'GET') {
+      baseCodes.unshift({ code: 200, description: "Request successful" });
+    } else if (endpoint.method === 'POST') {
+      baseCodes.unshift({ code: 201, description: "Resource created successfully" });
+    } else if (endpoint.method === 'PUT' || endpoint.method === 'PATCH') {
+      baseCodes.unshift({ code: 204, description: "Resource updated successfully" });
+    } else if (endpoint.method === 'DELETE') {
+      baseCodes.unshift({ code: 204, description: "Resource deleted successfully" });
+    }
+    
+    // Add common error codes
+    baseCodes.push(
+      { code: 400, description: "Invalid request" },
+      { code: 422, description: "Invalid request body" },
+      { code: 500, description: "Internal server error" }
+    );
+    
+    return baseCodes;
+  }
+
+  // Initial render
+  renderApiDocs();
+</script>
+{{ end }}

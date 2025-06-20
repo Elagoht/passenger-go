@@ -96,6 +96,13 @@ func (controller *PagesController) RouteChangePassword(
 	controller.template.Render(writer, "app", "change-password", nil)
 }
 
+func (controller *PagesController) RouteApiDocs(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	controller.template.Render(writer, "app", "api-docs", nil)
+}
+
 func (controller *PagesController) RouteLogin(
 	writer http.ResponseWriter,
 	request *http.Request,

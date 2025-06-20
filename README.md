@@ -74,9 +74,9 @@ tailscale serve --port http://localhost:[YOUR_PORT_HERE]
 - **URL Integration**: Click to open account websites in new tabs
 - **Real-time Search**: Instant search across platform names, usernames, and notes
 - **Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
-- **Dark/Light Mode**: Automatic theme switching based on system preferences
 - **Copy to Clipboard**: One-click copying of usernames and passwords
 - **Import/Export**: Support for Firefox and Chromium CSV exports
+- **API Documentation**: Comprehensive API reference with interactive endpoint documentation
 
 ## Environment Variables
 
@@ -90,8 +90,3 @@ Required environment variables:
 ## License
 
 This project is licensed under the [GPL-3.0](LICENSE) license.
-
-## Roadmap
-
-- [ ] Create a modern, responsive frontend
-- [ ] Create an api documentation
