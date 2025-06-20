@@ -9,11 +9,11 @@ import (
 var httpErrorMapping = map[schemas.APIErrorCode]int{
 	schemas.ErrInvalidRequest:           400,
 	schemas.ErrInvalidCredentials:       401,
-	schemas.ErrNotInitializedYet:        403,
 	schemas.ErrAccountNotFound:          404,
 	schemas.ErrAlreadyInitialized:       409,
 	schemas.ErrAccountAlreadyExists:     409,
 	schemas.ErrAnotherAccountFound:      409,
+	schemas.ErrNotInitializedYet:        412,
 	schemas.ErrUnprocessableEntity:      422,
 	schemas.ErrEncryptionFailed:         500,
 	schemas.ErrDecryptionFailed:         500,

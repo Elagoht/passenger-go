@@ -280,9 +280,9 @@ class ApiEndpoint extends HTMLElement {
         .status-204 { background-color: #27ae60; }
         .status-400 { background-color: #e74c3c; }
         .status-401 { background-color: #e74c3c; }
-        .status-403 { background-color: #f39c12; }
         .status-404 { background-color: #e74c3c; }
         .status-409 { background-color: #f39c12; }
+        .status-412 { background-color: #f39c12; }
         .status-422 { background-color: #e74c3c; }
         .status-500 { background-color: #e74c3c; }
 

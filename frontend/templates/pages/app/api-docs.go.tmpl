@@ -3,7 +3,7 @@
 {{ define "page" }}
 <section>
   <h1>API Documentation</h1>
-  <p>Complete API reference for Passenger-Go. All endpoints return JSON responses and require authentication via JWT token in cookies.</p>
+  <p>Complete API reference for Passenger-Go. All protected endpoints require authentication via JWT "token" in cookies.</p>
 </section>
 
 <div id="api-docs"></div>
@@ -286,12 +286,12 @@
         <h2>${controller.controller}</h2>
         <p>${controller.description}</p>
       `;
-      
+
       const endpointsContainer = document.createElement('div');
       endpointsContainer.style.display = 'flex';
       endpointsContainer.style.flexDirection = 'column';
       endpointsContainer.style.gap = '1rem';
-      
+
       controller.endpoints.forEach(endpoint => {
         const endpointElement = document.createElement('api-endpoint');
         const endpointData = {
@@ -316,15 +316,15 @@
 
   function getStatusCodes(endpoint) {
     const baseCodes = [];
-    
+
     if (endpoint.requireAuth) {
       baseCodes.push({ code: 401, description: "Invalid or missing token" });
     }
-    
+
     if (endpoint.requireInit) {
-      baseCodes.push({ code: 403, description: "Application not initialized" });
+      baseCodes.push({ code: 412, description: "Application not initialized" });
     }
-    
+
     // Add success codes based on method
     if (endpoint.method === 'GET') {
       baseCodes.unshift({ code: 200, description: "Request successful" });
@@ -335,7 +335,7 @@
     } else if (endpoint.method === 'DELETE') {
       baseCodes.unshift({ code: 204, description: "Resource deleted successfully" });
     }
-    
+
     // Add common error codes
     baseCodes.push(
       { code: 400, description: "Invalid request" },
