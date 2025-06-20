@@ -25,6 +25,9 @@ func NewFrontendController() (*FrontendController, error) {
 }
 
 func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
+	// Apply initialization middleware to all routes
+	router.Use(auth.InitializationMiddleware)
+
 	// Serve static files
 	fileServer := http.FileServer(http.Dir("frontend/static"))
 	router.Handle("/static/*", http.StripPrefix("/static/", fileServer))
