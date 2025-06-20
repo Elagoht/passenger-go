@@ -110,13 +110,13 @@ blockquote {
 .success {
   background-color: color-mix(in srgb, green 70%, transparent 30%);
   border-left: 0.25rem solid green;
-  color: #1e1e2e;
+  color: #cdf4d6;
 }
 
 .error {
   background-color: color-mix(in srgb, red 60%, transparent 40%);
   border-left: 0.25rem solid red;
-  color: #1e1e2e;
+  color: #f4cdd6;
 }
 
 .info {
