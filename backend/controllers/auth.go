@@ -39,7 +39,7 @@ func (controller *AuthController) MountAuthRouter(router *chi.Mux) {
 	controller.privateRouter.Patch("/passphrase", controller.UpdatePassphrase)
 
 	router.Mount("/auth", controller.publicRouter.Mux())
-	router.Mount("/auth/protected", controller.privateRouter.Mux())
+	router.Mount("/auth", controller.privateRouter.Mux())
 }
 
 func (controller *AuthController) Status(
