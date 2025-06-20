@@ -53,8 +53,8 @@ textarea {
 
 .button,
 button {
-  background-color: #666baa;
-  color: #cdd6f4;
+  background-color: #89b4fa;
+  color: #1e1e2e;
   border: none;
   border-radius: 0.25rem;
   padding: 0.75rem;
@@ -68,7 +68,7 @@ button {
 
 .button:hover,
 button:hover {
-  background-color: #8589cf;
+  background-color: #a6c2f5;
 }
 
 .button-danger {

@@ -34,6 +34,7 @@ func (controller *PagesController) RouteApp(
 
 	controller.template.Render(writer, "app", "main", map[string]any{
 		"Accounts": accounts,
+		"Empty":    len(accounts) == 0,
 		"Token":    request.CookiesNamed("token")[0].Value,
 	})
 }

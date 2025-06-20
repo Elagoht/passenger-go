@@ -5,6 +5,18 @@
   <input required placeholder="Search accounts..." type="search" oninput="searchAccounts(this.value)" />
 </form>
 
+{{ if .Empty }}
+<section>
+  <h1>No accounts found</h1>
+  <p>Get started by importing your existing accounts or creating a new one.</p>
+
+  <nav>
+    <a class="button button-success" href="/import">Import Accounts</a>
+    <a class="button" href="/create">Add New Account</a>
+  </nav>
+</section>
+{{ end }}
+
 <div id="accounts-grid"></div>
 {{ end }}
 {{ define "script" }}
@@ -27,12 +39,7 @@
   function renderAccounts(accounts, query = '') {
     const grid = document.getElementById('accounts-grid');
     grid.innerHTML = '';
-    
-    // Apply grid styling
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(16rem, 1fr))';
-    grid.style.gap = '1rem';
-    
+
     for (const account of accounts) {
       const card = document.createElement('account-card');
       card.setAttribute('data-account', JSON.stringify(account));
