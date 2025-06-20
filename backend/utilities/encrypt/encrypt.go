@@ -55,12 +55,27 @@ func VerifyPassword(password, hashedPassword string) (bool, error) {
 
 // Encrypt encrypts data using AES-GCM and returns a base64 encoded string
 func Encrypt(data string) (string, error) {
-	return AESGCMEncrypt([]byte(data))
+	return aesGCMEncrypt([]byte(data))
 }
 
 // Decrypt decrypts a base64 encoded encrypted string
 func Decrypt(encryptedData string) (string, error) {
-	decrypted, err := AESGCMDecrypt(encryptedData)
+	decrypted, err := aesGCMDecrypt(encryptedData)
+	if err != nil {
+		return "", err
+	}
+	return string(decrypted), nil
+}
+
+// EncryptDeterministic encrypts data deterministically for database uniqueness
+// WARNING: This is less secure than random encryption but needed for database constraints
+func EncryptDeterministic(data string) (string, error) {
+	return aesGCMEncryptDeterministic([]byte(data))
+}
+
+// DecryptDeterministic decrypts deterministically encrypted data
+func DecryptDeterministic(encryptedData string) (string, error) {
+	decrypted, err := aesGCMDecryptDeterministic(encryptedData)
 	if err != nil {
 		return "", err
 	}
@@ -81,7 +96,7 @@ func GenerateRecoveryKey(passphrase string) (string, error) {
 	return recoveryKey, nil
 }
 
-func AESGCMEncrypt(data []byte) (string, error) {
+func aesGCMEncrypt(data []byte) (string, error) {
 	block, err := aes.NewCipher(aesGCMSecret)
 	if err != nil {
 		return "", err
@@ -101,7 +116,54 @@ func AESGCMEncrypt(data []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func AESGCMDecrypt(data string) ([]byte, error) {
+func aesGCMDecrypt(data string) ([]byte, error) {
+	block, err := aes.NewCipher(aesGCMSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	decodedData, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return nil, err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(decodedData) < nonceSize {
+		return nil, errors.New("ciphertext too short")
+	}
+
+	nonce, ciphertext := decodedData[:nonceSize], decodedData[nonceSize:]
+	return gcm.Open(nil, nonce, ciphertext, nil)
+}
+
+// AESGCMEncryptDeterministic encrypts data with a deterministic nonce derived from the data
+// This always produces the same ciphertext for the same input, suitable for database uniqueness
+func aesGCMEncryptDeterministic(data []byte) (string, error) {
+	block, err := aes.NewCipher(aesGCMSecret)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	// Create deterministic nonce by hashing the data + secret
+	hash := sha256.Sum256(append(data, aesGCMSecret...))
+	nonce := hash[:gcm.NonceSize()] // Use first 12 bytes of hash as nonce
+
+	ciphertext := gcm.Seal(nonce, nonce, data, nil)
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+// AESGCMDecryptDeterministic decrypts deterministically encrypted data
+func aesGCMDecryptDeterministic(data string) ([]byte, error) {
 	block, err := aes.NewCipher(aesGCMSecret)
 	if err != nil {
 		return nil, err
