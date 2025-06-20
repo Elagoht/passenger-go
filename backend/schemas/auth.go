@@ -5,7 +5,7 @@ type ResponseIsInitialized struct {
 }
 
 type RequestAuthRegister struct {
-	Passphrase string `json:"passphrase"`
+	Passphrase string `json:"passphrase" validate:"required,min=12,max=128"`
 }
 
 type ResponseAuthRegister struct {
@@ -13,11 +13,11 @@ type ResponseAuthRegister struct {
 }
 
 type RequestAuthCompleteRegistration struct {
-	Recovery string `json:"recovery"`
+	Recovery string `json:"recovery" validate:"required,min=12,max=128"`
 }
 
 type RequestAuthLogin struct {
-	Passphrase string `json:"passphrase"`
+	Passphrase string `json:"passphrase" validate:"required,min=12,max=128"`
 }
 
 type ResponseAuthLogin struct {
@@ -25,7 +25,7 @@ type ResponseAuthLogin struct {
 }
 
 type RequestAuthUpdatePassphrase struct {
-	Passphrase string `json:"passphrase"`
+	Passphrase string `json:"passphrase" validate:"required,min=12,max=128"`
 }
 
 type RequestAuthRecover struct {
