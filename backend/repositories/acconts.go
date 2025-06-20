@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"passenger-go/backend/schemas"
 	"passenger-go/backend/utilities/database"
-	"passenger-go/backend/utilities/encrypt"
-	"passenger-go/backend/utilities/strength"
 	"strconv"
 	"strings"
 )
@@ -16,6 +14,26 @@ type AccountsRepository struct {
 
 func NewAccountsRepository() *AccountsRepository {
 	return &AccountsRepository{database: database.GetDB()}
+}
+
+// Exported structs for encrypted data
+type EncryptedAccountRow struct {
+	Id                string
+	Platform          string
+	Identifier        string
+	Url               string
+	Notes             string
+	EncryptedStrength string
+}
+
+type EncryptedAccountDetailsRow struct {
+	Id                string
+	Platform          string
+	Identifier        string
+	Url               string
+	Passphrase        string
+	Notes             string
+	EncryptedStrength string
 }
 
 func (repository *AccountsRepository) GetAccounts() ([]*schemas.ResponseAccount, error) {
@@ -32,19 +50,62 @@ func (repository *AccountsRepository) GetAccounts() ([]*schemas.ResponseAccount,
 	accounts := []*schemas.ResponseAccount{}
 
 	for rows.Next() {
-		var account schemas.ResponseAccount
+		var row EncryptedAccountRow
 		err = rows.Scan(
-			&account.Id,
-			&account.Platform,
-			&account.Identifier,
-			&account.Url,
-			&account.Notes,
-			&account.Strength,
+			&row.Id,
+			&row.Platform,
+			&row.Identifier,
+			&row.Url,
+			&row.Notes,
+			&row.EncryptedStrength,
 		)
 		if err != nil {
 			return nil, err
 		}
-		accounts = append(accounts, &account)
+
+		// Convert to ResponseAccount with encrypted data
+		// The service layer will decrypt these
+		account := &schemas.ResponseAccount{
+			Id:         row.Id,
+			Platform:   row.Platform,
+			Identifier: row.Identifier,
+			Url:        row.Url,
+			Notes:      row.Notes,
+			Strength:   0, // Will be set after decryption by service
+		}
+		accounts = append(accounts, account)
+	}
+
+	return accounts, nil
+}
+
+func (repository *AccountsRepository) GetAccountsWithEncryptedData() ([]*EncryptedAccountRow, error) {
+	statement, err := repository.database.Prepare(QueryAccounts)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := statement.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := []*EncryptedAccountRow{}
+
+	for rows.Next() {
+		var row EncryptedAccountRow
+		err = rows.Scan(
+			&row.Id,
+			&row.Platform,
+			&row.Identifier,
+			&row.Url,
+			&row.Notes,
+			&row.EncryptedStrength,
+		)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, &row)
 	}
 
 	return accounts, nil
@@ -58,21 +119,55 @@ func (repository *AccountsRepository) GetAccount(
 		return nil, err
 	}
 
-	var account schemas.ResponseAccountDetails
+	var row EncryptedAccountDetailsRow
 	err = statement.QueryRow(id).Scan(
-		&account.Id,
-		&account.Platform,
-		&account.Identifier,
-		&account.Url,
-		&account.Passphrase,
-		&account.Notes,
-		&account.Strength,
+		&row.Id,
+		&row.Platform,
+		&row.Identifier,
+		&row.Url,
+		&row.Passphrase,
+		&row.Notes,
+		&row.EncryptedStrength,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &account, nil
+	// Return with encrypted data - service layer will decrypt
+	return &schemas.ResponseAccountDetails{
+		Id:         row.Id,
+		Platform:   row.Platform,
+		Identifier: row.Identifier,
+		Url:        row.Url,
+		Passphrase: row.Passphrase,
+		Notes:      row.Notes,
+		Strength:   0, // Will be set after decryption by service
+	}, nil
+}
+
+func (repository *AccountsRepository) GetAccountWithEncryptedData(
+	id string,
+) (*EncryptedAccountDetailsRow, error) {
+	statement, err := repository.database.Prepare(QueryAccountDetails)
+	if err != nil {
+		return nil, err
+	}
+
+	var row EncryptedAccountDetailsRow
+	err = statement.QueryRow(id).Scan(
+		&row.Id,
+		&row.Platform,
+		&row.Identifier,
+		&row.Url,
+		&row.Passphrase,
+		&row.Notes,
+		&row.EncryptedStrength,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &row, nil
 }
 
 func (repository *AccountsRepository) GetPassphrase(
@@ -107,23 +202,13 @@ func (repository *AccountsRepository) CreateAccount(
 		return nil, err
 	}
 
-	strengthScore, err := strength.CalculateStrength(account.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedPassphrase, err := encrypt.Encrypt(account.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-
 	result, err := statement.Exec(
 		account.Platform,
 		account.Identifier,
-		encryptedPassphrase,
+		account.Passphrase,
 		account.Url,
 		account.Notes,
-		strengthScore,
+		account.Strength, // This is the encrypted strength from service
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -148,7 +233,7 @@ func (repository *AccountsRepository) CreateAccount(
 		Passphrase: account.Passphrase,
 		Url:        account.Url,
 		Notes:      account.Notes,
-		Strength:   strengthScore,
+		Strength:   0, // Will be set by service layer after decryption
 	}, nil
 }
 
@@ -161,18 +246,13 @@ func (repository *AccountsRepository) UpdateAccount(
 		return err
 	}
 
-	strengthScore, err := strength.CalculateStrength(account.Passphrase)
-	if err != nil {
-		return err
-	}
-
 	_, err = statement.Exec(
 		account.Platform,
 		account.Identifier,
 		account.Passphrase,
 		account.Url,
 		account.Notes,
-		strengthScore,
+		account.Strength, // This is the encrypted strength from service
 		id,
 	)
 	if err != nil {

@@ -17,7 +17,7 @@ const (
 		url TEXT DEFAULT NULL,
 		passphrase TEXT NOT NULL,
 		notes TEXT DEFAULT NULL,
-		strength INTEGER DEFAULT 0,
+		strength TEXT DEFAULT NULL,
 		UNIQUE(platform, identifier)
 	)
 	`

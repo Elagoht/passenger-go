@@ -6,6 +6,7 @@ type RequestAccountsUpsert struct {
 	Passphrase string `json:"passphrase" validate:"required"`
 	Url        string `json:"url" validate:"required"`
 	Notes      string `json:"notes" validate:"omitempty"`
+	Strength   string `json:"strength" validate:"omitempty"`
 }
 
 type ResponseAccount struct {
