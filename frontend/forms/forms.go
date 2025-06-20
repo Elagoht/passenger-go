@@ -75,13 +75,13 @@ func (controller *FormsController) FormComplete(
 				http.Redirect(writer, request, "/login", http.StatusFound)
 				return
 			} else {
-				controller.template.Render(writer, "auth", "complete", map[string]string{
+				controller.template.Render(writer, "auth", "check", map[string]string{
 					"Error":    apiError.Message,
 					"Recovery": recovery,
 				})
 			}
 		} else {
-			controller.template.Render(writer, "auth", "complete", map[string]string{
+			controller.template.Render(writer, "auth", "check", map[string]string{
 				"Error": err.Error(),
 			})
 		}
