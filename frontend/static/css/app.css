@@ -30,6 +30,7 @@ header > div {
 
 header h1 {
   font-size: 1.5rem;
+  color: #cdd6f4;
 }
 
 header a {
@@ -75,7 +76,7 @@ header nav #nav-dropdown {
   top: calc(100% + 1.2rem);
   right: 0;
   background-color: #1e1e2e;
-  border: 0.06125rem solid var(--button-border);
+  border: 0.06125rem solid #45475a;
   border-radius: 0.25rem;
   padding: 0.5rem 0;
   min-width: 12rem;
@@ -98,6 +99,7 @@ header nav #nav-dropdown a {
   border-radius: 0;
   text-align: left;
   background-color: transparent;
+  color: #cdd6f4;
   transition: background-color 0.2s ease;
 }
 
@@ -135,28 +137,28 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  background-color: var(--canvas-bg);
-  color: var(--canvas-text);
+  background-color: #1e1e2e;
+  color: #cdd6f4;
   font-size: 1rem;
   border-radius: 0.5rem;
   overflow: hidden;
-  border: 0.06125rem solid var(--button-border);
+  border: 0.06125rem solid #45475a;
 }
 
 th,
 td {
   text-align: left;
   padding: 0.125rem;
-  border-bottom: 0.06125rem solid var(--button-border);
+  border-bottom: 0.06125rem solid #45475a;
 }
 
 th {
-  background-color: var(--field-bg);
-  color: var(--field-text);
+  background-color: #313244;
+  color: #a6adc8;
 
   font-weight: 600;
   padding: 0.5rem;
-  border-bottom: 0.125rem solid var(--button-border);
+  border-bottom: 0.125rem solid #45475a;
 }
 
 tr:last-child td {
@@ -164,8 +166,8 @@ tr:last-child td {
 }
 
 tr:hover td {
-  background-color: var(--highlight-bg);
-  color: var(--highlight-text);
+  background-color: #313244;
+  color: #cdd6f4;
   transition: background-color 0.2s, color 0.2s;
 }
 
@@ -181,7 +183,7 @@ button {
 }
 
 a {
-  color: var(--link-text);
+  color: #89b4fa;
   text-decoration: none;
   display: block;
 }
@@ -220,4 +222,44 @@ section nav {
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: center;
+}
+
+/* API Documentation Styling */
+section h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #cdd6f4;
+  margin-bottom: 0.5rem;
+}
+
+section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #cdd6f4;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 0.06125rem solid #45475a;
+}
+
+section p {
+  color: #a6adc8;
+  line-height: 1.6;
+  max-width: 48rem;
+  margin-bottom: 2rem;
+}
+
+#api-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+#api-docs > section {
+  min-height: auto;
+  align-items: flex-start;
+  text-align: left;
+}
+
+#api-docs > section > div {
+  width: 100%;
 }
