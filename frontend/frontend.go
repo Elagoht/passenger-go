@@ -5,6 +5,7 @@ import (
 	"passenger-go/frontend/forms"
 	"passenger-go/frontend/pages"
 	"passenger-go/frontend/utilities/auth"
+	"passenger-go/frontend/utilities/cache"
 	"passenger-go/frontend/utilities/template"
 
 	"github.com/go-chi/chi"
@@ -27,6 +28,9 @@ func NewFrontendController() (*FrontendController, error) {
 func (controller *FrontendController) MountFrontendRouter(router *chi.Mux) {
 	// Apply initialization middleware to all routes
 	router.Use(auth.InitializationMiddleware)
+
+	// Apply ETag middleware to static routes
+	router.Use(cache.StaticETagMiddleware("frontend/static"))
 
 	// Serve static files
 	fileServer := http.FileServer(http.Dir("frontend/static"))
