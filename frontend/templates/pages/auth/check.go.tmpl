@@ -13,7 +13,7 @@
   </label>
 
   {{ if .Error }}
-  <small>{{ .Error }}</small>
+  <blockquote class="error">{{ .Error }}</blockquote>
   {{ end }}
 
   <button type="submit">Complete</button>
