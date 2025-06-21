@@ -6,6 +6,7 @@ import (
 
 	"passenger-go/backend"
 	"passenger-go/backend/middlewares"
+	"passenger-go/backend/utilities/encrypt"
 	"passenger-go/backend/utilities/logger"
 	"passenger-go/frontend"
 
@@ -14,6 +15,9 @@ import (
 
 func main() {
 	log := logger.GetLogger()
+
+	// Initialize encryption secret
+	encrypt.InitAESGCMSecret()
 
 	router := chi.NewRouter()
 

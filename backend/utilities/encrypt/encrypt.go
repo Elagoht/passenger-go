@@ -18,7 +18,8 @@ import (
 
 var aesGCMSecret = []byte{}
 
-func init() {
+// InitAESGCMSecret initializes the AES-GCM secret from the environment variable.
+func InitAESGCMSecret() {
 	godotenv.Load()
 	log := logger.GetLogger()
 	aesGCMSecret = []byte(os.Getenv("AES_GCM_SECRET"))
