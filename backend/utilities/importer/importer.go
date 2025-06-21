@@ -196,9 +196,9 @@ func calculateFields(
 }
 
 func findFieldIndex(fields []string, field string) int {
-	for i, f := range fields {
-		if f == field {
-			return i
+	for index, currentField := range fields {
+		if currentField == field {
+			return index
 		}
 	}
 
