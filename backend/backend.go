@@ -9,6 +9,7 @@ import (
 var authController = controllers.NewAuthController()
 var accountsController = controllers.NewAccountsController()
 var transferController = controllers.NewTransferController()
+var generateController = controllers.NewGenerateController()
 
 func MountBackend(router *chi.Mux) *chi.Mux {
 	apiRouter := chi.NewRouter()
@@ -16,6 +17,7 @@ func MountBackend(router *chi.Mux) *chi.Mux {
 	authController.MountAuthRouter(apiRouter)
 	accountsController.MountAccountsRouter(apiRouter)
 	transferController.MountTransferRouter(apiRouter)
+	generateController.MountGenerateRouter(apiRouter)
 
 	router.Mount("/api", apiRouter)
 

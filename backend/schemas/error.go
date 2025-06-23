@@ -35,4 +35,5 @@ const (
 	ErrAnotherAccountFound      APIErrorCode = "ANOTHER_ACCOUNT_FOUND"
 	ErrInvalidPlatform          APIErrorCode = "INVALID_PLATFORM"
 	ErrAccountNotFound          APIErrorCode = "ACCOUNT_NOT_FOUND"
+	ErrInvalidLength            APIErrorCode = "INVALID_LENGTH"
 )
