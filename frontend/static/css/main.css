@@ -89,6 +89,15 @@ button:hover {
   background-color: #5db460;
 }
 
+.button-secondary {
+  background-color: #45475a;
+  color: #cdd6f4;
+}
+
+.button-secondary:hover {
+  background-color: #5a5c6e;
+}
+
 .button-group {
   width: 100%;
   display: grid;
@@ -123,4 +132,59 @@ blockquote {
   background-color: color-mix(in srgb, lightblue 60%, transparent 40%);
   border-left: 0.25rem solid lightblue;
   color: #cdd6f4;
+}
+
+.passphrase-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.passphrase-actions button {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.5rem;
+}
+
+.passphrase-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passphrase-input-container input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.eye-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: transparent !important;
+  border: none !important;
+  padding: 0.25rem !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.eye-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.eye-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.eye-toggle:hover .eye-icon {
+  opacity: 1;
 }

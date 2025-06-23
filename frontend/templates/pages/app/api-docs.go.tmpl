@@ -230,6 +230,42 @@
       ],
     },
     {
+      controller: "Generate",
+      description: "Generate and manipulate passphrases using the backend service",
+      prefix: "/generate",
+      endpoints: [
+        {
+          method: "GET",
+          path: "/new",
+          description: "Generate a new secure passphrase with specified length (default: 32). Contains mixed character sets: uppercase, lowercase, numbers, and special characters. Use query parameter ?length=X to specify length.",
+          requireInit: false,
+          requireAuth: false,
+          response: {
+            type: "application/json",
+            schema: { generated: "string" },
+            example: { generated: "XpR7#mN9$vL2@qK8&hJ4!wG6*zD5%nM3" },
+          },
+        },
+        {
+          method: "POST",
+          path: "/alternative",
+          description: "Create an alternative version of a passphrase using character substitution (e.g., 'o' → '0', 'a' → '@', 'i' → '1'). Useful for creating variations of existing passphrases.",
+          requireInit: false,
+          requireAuth: false,
+          request: {
+            type: "application/json",
+            schema: { passphrase: "string" },
+            example: { passphrase: "mypassword123" },
+          },
+          response: {
+            type: "application/json",
+            schema: { alternative: "string" },
+            example: { alternative: "myp455w0rd123" },
+          },
+        },
+      ],
+    },
+    {
       controller: "Transfer",
       description: "Import and export account data",
       prefix: "/transfer",
@@ -337,11 +373,14 @@
     }
 
     // Add common error codes
-    baseCodes.push(
-      { code: 400, description: "Invalid request" },
-      { code: 422, description: "Invalid request body" },
-      { code: 500, description: "Internal server error" }
-    );
+    baseCodes.push({ code: 400, description: "Invalid request" });
+    
+    // Only add 422 if endpoint has a request body
+    if (endpoint.request && endpoint.request.type) {
+      baseCodes.push({ code: 422, description: "Invalid request body" });
+    }
+    
+    baseCodes.push({ code: 500, description: "Internal server error" });
     
     return baseCodes;
   }
