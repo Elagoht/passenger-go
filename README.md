@@ -11,7 +11,7 @@
 ![Tailscale](https://img.shields.io/badge/Tailscale-000000?style=for-the-badge&logo=tailscale&logoColor=white)
 </div>
 
-Passenger-Go is a secure, self-hosted passphrase manager that runs in your local network. It provides a modern, responsive web interface for managing your passwords and sensitive information, with all data encrypted and stored locally on your server.
+Passenger-Go is a secure, self-hosted passphrase manager that runs in your local network. It provides a modern, responsive web interface for managing your passphrases and sensitive information, with all data encrypted and stored locally on your server.
 
 Additionally provides an api, so you can use it in your own client projects.
 
@@ -73,8 +73,10 @@ tailscale serve --port http://localhost:[YOUR_PORT_HERE]
 - **Favicon Support**: Automatic favicon fetching from websites using icon.horse
 - **URL Integration**: Click to open account websites in new tabs
 - **Real-time Search**: Instant search across platform names, usernames, and notes
+- **Passphrase Generator**: Generate strong passphrases with customizable length and complexity
+- **Passphrase Alternator**: Changes the given passphrase's characters to similar looking characters
 - **Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
-- **Copy to Clipboard**: One-click copying of usernames and passwords
+- **Copy to Clipboard**: One-click copying of usernames and passphrases
 - **Import/Export**: Support for Firefox and Chromium CSV exports
 - **API Documentation**: Comprehensive API reference with interactive endpoint documentation
 
@@ -84,9 +86,17 @@ Required environment variables:
 
 - `JWT_SECRET`: Secret for JWT token generation
 - `AES_GCM_SECRET`: Secret for AES-GCM encryption
-- `SALT`: Salt for password hashing
+- `SALT`: Salt for passphrase hashing
 - `PORT`: Port to run the server on
 
 ## License
 
 This project is licensed under the [GPL-3.0](LICENSE) license.
+
+## Open Source
+
+This project is open source and free to use. Feel free to contribute to the project.
+
+## Why Not Saying "Password"
+
+Passwords are obsolete and not secure. Passphrases are more secure and easier to remember. word means, a single word. phrase means, a group of words. How long is your "passkey" means how secure it is. By using phrases, you can remember them easier while being more secure.
