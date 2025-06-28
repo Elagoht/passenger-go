@@ -140,13 +140,39 @@
         {
           method: "GET",
           path: "/{id}",
+          description: "Get account details by ID",
+          requireInit: true,
+          requireAuth: true,
+          response: {
+            type: "application/json",
+            schema: {
+              id: "string",
+              platform: "string",
+              identifier: "string",
+              url: "string",
+              notes: "string",
+              strength: "number"
+            },
+            example: {
+              id: "1",
+              platform: "GitHub",
+              identifier: "user@example.com",
+              url: "https://github.com",
+              notes: "Personal account",
+              strength: 85
+            },
+          },
+        },
+        {
+          method: "GET",
+          path: "/{id}/passphrase",
           description: "Get account passphrase by ID",
           requireInit: true,
           requireAuth: true,
           response: {
             type: "application/json",
             schema: "string",
-            example: "decrypted-passphrase",
+            example: "your-account-passphrase",
           },
         },
         {
