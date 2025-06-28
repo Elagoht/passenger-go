@@ -47,13 +47,11 @@ func (service *AccountsService) GetAccounts() ([]*schemas.ResponseAccount, error
 func (service *AccountsService) GetAccount(
 	id string,
 ) (*schemas.ResponseAccountDetails, error) {
-	// We need a new repository method that returns encrypted data
 	account, err := service.repository.GetAccountWithEncryptedData(id)
 	if err != nil {
 		return nil, err
 	}
 
-	// Decrypt the account
 	return service.decryptAccountDetailsRowToResponse(account)
 }
 

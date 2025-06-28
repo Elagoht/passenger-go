@@ -32,7 +32,8 @@ func (controller *AccountsController) MountAccountsRouter(router *chi.Mux) {
 
 	controller.accountsRouter.Get("/", controller.GetAccounts)
 	controller.accountsRouter.Get("/identifiers", controller.GetUniqueIdentifiers)
-	controller.accountsRouter.Get("/{id}", controller.GetPassphrase)
+	controller.accountsRouter.Get("/{id}", controller.GetAccount)
+	controller.accountsRouter.Get("/{id}/passphrase", controller.GetPassphrase)
 	controller.accountsRouter.Post("/", controller.CreateAccount)
 	controller.accountsRouter.Put("/{id}", controller.UpdateAccount)
 	controller.accountsRouter.Delete("/{id}", controller.DeleteAccount)
@@ -62,6 +63,27 @@ func (controller *AccountsController) GetUniqueIdentifiers(
 	}
 
 	return json.NewEncoder(writer).Encode(identifiers)
+}
+
+func (controller *AccountsController) GetAccount(
+	writer http.ResponseWriter,
+	request *http.Request,
+) error {
+	id := chi.URLParam(request, "id")
+	if id == "" {
+		return schemas.NewAPIError(
+			schemas.ErrInvalidRequest,
+			"Account ID is required",
+			nil,
+		)
+	}
+
+	account, err := controller.service.GetAccount(id)
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(writer).Encode(account)
 }
 
 func (controller *AccountsController) GetPassphrase(
