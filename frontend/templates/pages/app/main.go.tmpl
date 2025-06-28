@@ -91,7 +91,7 @@
       copyText(cached);
       return;
     }
-    fetch(`/api/accounts/${id}`, { credentials: 'include' })
+    fetch(`/api/accounts/${id}/passphrase`, { credentials: 'include' })
     .then(response => response.json())
     .then(data => {
       passphraseCache.set(id, data);
