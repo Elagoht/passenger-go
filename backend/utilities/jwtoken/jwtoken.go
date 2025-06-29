@@ -35,7 +35,7 @@ func GenerateJWT(userId int) (string, error) {
 		"iss": "passenger-go",
 		"sub": userId,
 		"iat": time.Now().Unix(),
-		"exp": time.Now().Add(time.Hour).Unix(), // 1 hour expiration
+		"exp": time.Now().Add(time.Minute * 5).Unix(), // 5 minutes expiration
 	})
 
 	return token.SignedString(jwtSecret)
