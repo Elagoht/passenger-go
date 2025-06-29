@@ -36,6 +36,11 @@ var routesDoNotRequireInitialization = []string{
 
 func InitializationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if strings.HasPrefix(request.URL.Path, "/api") {
+			next.ServeHTTP(writer, request)
+			return
+		}
+
 		// Skip initialization check for public routes and static files
 		for _, route := range routesDoNotRequireInitialization {
 			if strings.HasPrefix(request.URL.Path, route) {
