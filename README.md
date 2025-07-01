@@ -16,6 +16,12 @@
 ![GitHub License](https://img.shields.io/github/license/Elagoht/passenger-go?style=for-the-badge)
 </div>
 
+<div align="center">
+
+[![](https://img.shields.io/badge/Download_CLI_App-gold?style=for-the-badge)](https://github.com/Elagoht/passenger-go-cli)
+
+</div>
+
 Passenger-Go is a secure, self-hosted passphrase manager that runs in your local network. It provides a modern, responsive web interface for managing your passphrases and sensitive information, with all data encrypted and stored locally on your server.
 
 Additionally provides an api, so you can use it in your own client projects.
