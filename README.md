@@ -9,6 +9,11 @@
 ![CSS](https://img.shields.io/badge/CSS-1572B6?style=for-the-badge&logo=css&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 ![Tailscale](https://img.shields.io/badge/Tailscale-000000?style=for-the-badge&logo=tailscale&logoColor=white)
+---
+
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Elagoht/passenger-go/release.yaml?style=for-the-badge)
+[![GitHub Stars](https://img.shields.io/github/stars/Elagoht/passenger-go.svg?style=for-the-badge)](https://github.com/Elagoht/passenger-go/stargazers)
+![GitHub License](https://img.shields.io/github/license/Elagoht/passenger-go?style=for-the-badge)
 </div>
 
 Passenger-Go is a secure, self-hosted passphrase manager that runs in your local network. It provides a modern, responsive web interface for managing your passphrases and sensitive information, with all data encrypted and stored locally on your server.
