@@ -9,6 +9,7 @@ import (
 	"passenger-go/pages"
 	accountpages "passenger-go/pages/accounts"
 	authpages "passenger-go/pages/auth"
+	settingspages "passenger-go/pages/settings"
 )
 
 // register adds every page, document and action to app.
@@ -25,5 +26,9 @@ func register(app *collage.App, deps *web.Deps) error {
 		accountpages.Delete(deps),
 		accountactions.Passphrase(deps),
 		pages.Generate(deps),
+		pages.Import(deps),
+		pages.Export(deps),
+		settingspages.Passphrase(deps),
+		settingspages.Recovery(deps),
 	)
 }

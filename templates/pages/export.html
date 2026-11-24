@@ -1,0 +1,16 @@
+<h1>Export</h1>
+
+<form method="post" action="{{pageURL "export"}}">
+  {{csrfToken}}
+  <strong>Export accounts</strong>
+  <p>The file is plain text and holds every passphrase unencrypted. Keep it somewhere safe and delete it when you are done.</p>
+
+  <label>
+    <span>Master passphrase</span>
+    <input required type="password" name="passphrase" autocomplete="current-password">
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Download CSV</button>
+</form>

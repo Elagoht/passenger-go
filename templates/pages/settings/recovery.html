@@ -1,0 +1,25 @@
+<h1>Recovery key</h1>
+
+{{if .NewKey}}
+<section>
+  {{template "pages/auth/recovery_shown.html" .NewKey}}
+  <a href="{{pageURL "settings-passphrase"}}">Back to settings</a>
+</section>
+{{else}}
+<form method="post" action="{{pageURL "settings-recovery"}}" autocomplete="off">
+  {{csrfToken}}
+  <strong>Regenerate recovery key</strong>
+  <p>Issues a new recovery key and shows it once. The current key stops working.</p>
+
+  <label>
+    <span>Current passphrase</span>
+    <input required type="password" name="current" autocomplete="current-password">
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Regenerate</button>
+</form>
+
+<a href="{{pageURL "settings-passphrase"}}">Back to settings</a>
+{{end}}

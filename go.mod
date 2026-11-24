@@ -4,6 +4,7 @@ go 1.26.11
 
 require (
 	github.com/Elagoht/collage v1.0.1
+	golang.org/x/net v0.63.0
 	modernc.org/sqlite v1.63.0
 )
 

@@ -1,0 +1,30 @@
+<h1>Settings</h1>
+
+{{if .Saved}}<blockquote class="info">Passphrase changed.</blockquote>{{end}}
+
+<form method="post" action="{{pageURL "settings-passphrase"}}" autocomplete="off">
+  {{csrfToken}}
+  <strong>Change master passphrase</strong>
+  <p>Other sessions are signed out when the passphrase changes.</p>
+
+  <label>
+    <span>Current passphrase</span>
+    <input required type="password" name="current" autocomplete="current-password">
+  </label>
+
+  <label>
+    <span>New passphrase</span>
+    <input required type="password" name="passphrase" minlength="12" autocomplete="new-password">
+  </label>
+
+  <label>
+    <span>Repeat new passphrase</span>
+    <input required type="password" name="confirm" minlength="12" autocomplete="new-password">
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Change passphrase</button>
+</form>
+
+<a href="{{pageURL "settings-recovery"}}">Regenerate recovery key</a>

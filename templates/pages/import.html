@@ -1,0 +1,36 @@
+<h1>Import</h1>
+
+{{with .Result}}
+<section>
+  <strong>{{.Imported}} {{if eq .Imported 1}}account{{else}}accounts{{end}} imported</strong>
+  {{if .Failed}}
+  <p>{{len .Failed}} failed:</p>
+  <table>
+    <thead>
+      <tr><th>Platform</th><th>Identifier</th><th>Reason</th></tr>
+    </thead>
+    <tbody>
+      {{range .Failed}}
+      <tr><td>{{.Platform}}</td><td>{{.Identifier}}</td><td>{{.Reason}}</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+  <a href="{{pageURL "accounts"}}">Back to accounts</a>
+</section>
+{{end}}
+
+<form method="post" action="{{pageURL "import"}}" enctype="multipart/form-data">
+  {{csrfToken}}
+  <strong>Import accounts</strong>
+  <p>Choose a CSV exported from Firefox, a Chromium browser (Chrome, Edge, Brave) or Passenger. Accounts that already exist are not overwritten.</p>
+
+  <label>
+    <span>CSV file</span>
+    <input required type="file" name="file" accept=".csv,text/csv">
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Import</button>
+</form>

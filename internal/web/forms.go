@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Elagoht/collage/pkg/collage"
 
@@ -59,4 +60,19 @@ func RequireSessionFrom(rc *collage.RenderContext) (*session.Session, error) {
 	}
 	cp := *s // a struct copy: DEK is an array, so the key bytes are copied too
 	return &cp, nil
+}
+
+// MinPassphraseRunes is the shortest master passphrase accepted.
+const MinPassphraseRunes = 12
+
+// CheckNewPassphrase returns why a new master passphrase and its repeat are
+// refused, or "" when they are accepted.
+func CheckNewPassphrase(pass, confirm string) string {
+	if utf8.RuneCountInString(pass) < MinPassphraseRunes {
+		return "The passphrase must be at least 12 characters."
+	}
+	if pass != confirm {
+		return "The passphrases do not match."
+	}
+	return ""
 }

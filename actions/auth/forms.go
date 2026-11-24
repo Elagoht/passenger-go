@@ -4,26 +4,17 @@ package actions
 
 import (
 	"net/http"
-	"unicode/utf8"
 
 	"github.com/Elagoht/collage/pkg/collage"
 
 	fragments "passenger-go/fragments/pages/auth"
+	"passenger-go/internal/web"
 )
-
-// minPassphraseRunes is the shortest master passphrase accepted.
-const minPassphraseRunes = 12
 
 // checkNewPassphrase returns why a new master passphrase and its repeat are
 // refused, or "" when they are accepted.
 func checkNewPassphrase(pass, confirm string) string {
-	if utf8.RuneCountInString(pass) < minPassphraseRunes {
-		return "The passphrase must be at least 12 characters."
-	}
-	if pass != confirm {
-		return "The passphrases do not match."
-	}
-	return ""
+	return web.CheckNewPassphrase(pass, confirm)
 }
 
 // refuse answers with the form's own page carrying msg. The page renders no
