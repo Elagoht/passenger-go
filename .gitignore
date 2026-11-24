@@ -9,3 +9,8 @@ certs/
 
 # Built files
 passenger-go
+
+# Runtime data and build output
+data/
+.cache/
+bin/
