@@ -14,6 +14,9 @@ import (
 // static/session.js to read from <body data-session-expires>.
 type appView struct {
 	ExpiresAtMS int64
+	// RemainingMS is the time left by the server's clock, which the script
+	// counts down on its own monotonic clock.
+	RemainingMS int64
 }
 
 // App is the shell of every page behind the vault: navigation, logout and the
@@ -28,7 +31,10 @@ func App(d *web.Deps) *collage.Fragment {
 			if s == nil {
 				return appView{}, nil
 			}
-			return appView{ExpiresAtMS: d.Sessions.ExpiresAt(s).UnixMilli()}, nil
+			return appView{
+				ExpiresAtMS: d.Sessions.ExpiresAt(s).UnixMilli(),
+				RemainingMS: d.Sessions.Remaining(s).Milliseconds(),
+			}, nil
 		})).
 		Build()
 }

@@ -1,18 +1,28 @@
 // Session expiry warning: a minute before the session ends, ask the server for
 // the real end (another tab may have extended it) and, if it is still near,
 // show the banner with a countdown. At the end, go to the login page.
+// The server and the browser may disagree about the time of day, so the page
+// never compares clocks: it takes the time left from the server and counts it
+// down on the browser's monotonic clock (performance.now).
 // Text is only ever set through textContent.
 "use strict";
 
 (function () {
   var WARN_MS = 60000;
   var banner = document.getElementById("session-banner");
-  var expires = parseInt(document.body.dataset.sessionExpires, 10);
-  if (!banner || !expires) {
+  var RETRY_MS = 15000;
+  var remaining = parseInt(document.body.dataset.sessionRemaining, 10);
+  if (!banner || !remaining || remaining < 0) {
     return;
+  }
+  var deadline = performance.now() + remaining;
+
+  function left() {
+    return deadline - performance.now();
   }
 
   var message = banner.querySelector("[data-session-message]");
+  var errorText = banner.querySelector("[data-session-error]");
   var extendButton = banner.querySelector("[data-session-extend]");
   var signOutButton = banner.querySelector("[data-session-signout]");
   var logoutForm = document.getElementById("logout-form");
@@ -45,7 +55,7 @@
   }
 
   function render() {
-    var seconds = Math.max(0, Math.ceil((expires - Date.now()) / 1000));
+    var seconds = Math.max(0, Math.ceil(left() / 1000));
     var text = "Your session ends in " + seconds + (seconds === 1 ? " second." : " seconds.");
     if (dirty) {
       text += " You have unsaved changes.";
@@ -55,13 +65,16 @@
 
   // schedule arms the check for one minute before the end (at once when that
   // moment has passed).
-  function schedule() {
+  function schedule(delay) {
     stop();
-    checkTimer = window.setTimeout(check, Math.max(0, expires - WARN_MS - Date.now()));
+    if (delay === undefined) {
+      delay = Math.max(0, left() - WARN_MS);
+    }
+    checkTimer = window.setTimeout(check, delay);
   }
 
   function tick() {
-    if (expires - Date.now() <= 0) {
+    if (left() <= 0) {
       finish();
       return;
     }
@@ -78,8 +91,9 @@
 
   // apply takes the server's answer; the end may have moved.
   function apply(body) {
-    expires = body.expiresAt;
-    if (expires - Date.now() > WARN_MS) {
+    deadline = performance.now() + body.remainingMs;
+    errorText.textContent = "";
+    if (left() > WARN_MS) {
       hide();
       schedule();
     } else {
@@ -102,7 +116,8 @@
   }
 
   // check asks the server for the real end. When the server cannot be reached,
-  // the end this page knows is all there is.
+  // the end this page knows is all there is: with more than a minute left
+  // there is nothing to show yet, so try again shortly.
   function check() {
     ask("/session", { method: "GET" })
       .then(function (body) {
@@ -113,8 +128,11 @@
         }
       })
       .catch(function () {
-        if (expires - Date.now() <= 0) {
+        if (left() <= 0) {
           leave();
+        } else if (left() > WARN_MS) {
+          hide();
+          schedule(RETRY_MS);
         } else {
           stop();
           warn();
@@ -128,7 +146,7 @@
     stop();
     ask("/session", { method: "GET" })
       .then(function (body) {
-        if (body === null || body.expiresAt - Date.now() <= 0) {
+        if (body === null || body.remainingMs <= 0) {
           leave();
         } else {
           apply(body);
@@ -148,7 +166,7 @@
         }
       })
       .catch(function () {
-        message.textContent = "Could not extend the session. Try again.";
+        errorText.textContent = "Could not extend the session. Try again.";
       })
       .then(function () {
         extendButton.disabled = false;

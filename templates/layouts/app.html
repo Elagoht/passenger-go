@@ -11,9 +11,10 @@
   {{hoist "head"}}
 </head>
 
-<body class="app" data-session-expires="{{.ExpiresAtMS}}">
+<body class="app" data-session-expires="{{.ExpiresAtMS}}" data-session-remaining="{{.RemainingMS}}">
   <div id="session-banner" class="session-banner" role="alert" hidden>
     <span data-session-message></span>
+    <span data-session-error></span>
     <button type="button" data-session-extend>Extend</button>
     <button type="button" data-session-signout>Sign out</button>
   </div>

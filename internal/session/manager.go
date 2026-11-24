@@ -58,6 +58,14 @@ func (m *Manager) expiresAt(s *Session) time.Time {
 // ExpiresAt returns min(LastSeen+idle, Created+max).
 func (m *Manager) ExpiresAt(s *Session) time.Time { return m.expiresAt(s) }
 
+// Remaining is how long s has left by the manager's clock, never below zero.
+func (m *Manager) Remaining(s *Session) time.Duration {
+	if d := m.expiresAt(s).Sub(m.now()); d > 0 {
+		return d
+	}
+	return 0
+}
+
 func (m *Manager) expiredLocked(s *Session) bool {
 	return m.now().After(m.expiresAt(s))
 }

@@ -11,7 +11,8 @@ import (
 )
 
 type expiryResponse struct {
-	ExpiresAt int64 `json:"expiresAt"`
+	ExpiresAt   int64 `json:"expiresAt"`
+	RemainingMs int64 `json:"remainingMs"`
 }
 
 // answer reports the session's expiry as unix milliseconds, or 401 with
@@ -22,7 +23,8 @@ func answer(d *web.Deps, rc *collage.RenderContext) (*collage.ActionResult, erro
 	if s == nil {
 		return collage.JSON(http.StatusUnauthorized, expiryResponse{})
 	}
-	return collage.JSON(http.StatusOK, expiryResponse{ExpiresAt: d.Sessions.ExpiresAt(s).UnixMilli()})
+	return collage.JSON(http.StatusOK, expiryResponse{ExpiresAt: d.Sessions.ExpiresAt(s).UnixMilli(),
+		RemainingMs: d.Sessions.Remaining(s).Milliseconds()})
 }
 
 // Status is GET /session. The middleware only peeks at this path, so polling

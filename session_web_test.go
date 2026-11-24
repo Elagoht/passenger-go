@@ -11,18 +11,26 @@ import (
 	"github.com/Elagoht/collage/pkg/collagetest"
 )
 
-func expiresAt(t *testing.T, res *collagetest.Response) int64 {
+type expiry struct {
+	ExpiresAt   int64 `json:"expiresAt"`
+	RemainingMs int64 `json:"remainingMs"`
+}
+
+func readExpiry(t *testing.T, res *collagetest.Response) expiry {
 	t.Helper()
 	if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		t.Fatalf("Content-Type = %q", ct)
 	}
-	var got struct {
-		ExpiresAt int64 `json:"expiresAt"`
-	}
+	var got expiry
 	if err := json.Unmarshal([]byte(res.Body), &got); err != nil {
 		t.Fatalf("body %q: %v", res.Body, err)
 	}
-	return got.ExpiresAt
+	return got
+}
+
+func expiresAt(t *testing.T, res *collagetest.Response) int64 {
+	t.Helper()
+	return readExpiry(t, res).ExpiresAt
 }
 
 func extend(c *collagetest.Client, token string) *collagetest.Response {
@@ -41,9 +49,16 @@ func TestSessionStatusDoesNotExtend(t *testing.T) {
 	if got := expiresAt(t, c.Get("/session").WantStatus(http.StatusOK)); got != want {
 		t.Fatalf("expiresAt = %d, want %d", got, want)
 	}
+	if got := readExpiry(t, c.Get("/session").WantStatus(http.StatusOK)); got.RemainingMs != (15 * time.Minute).Milliseconds() {
+		t.Fatalf("remainingMs = %d, want 15m", got.RemainingMs)
+	}
 	env.Clock.Advance(10 * time.Minute)
-	if got := expiresAt(t, c.Get("/session").WantStatus(http.StatusOK)); got != want {
-		t.Fatalf("expiresAt after polling = %d, want unchanged %d", got, want)
+	got := readExpiry(t, c.Get("/session").WantStatus(http.StatusOK))
+	if got.ExpiresAt != want {
+		t.Fatalf("expiresAt after polling = %d, want unchanged %d", got.ExpiresAt, want)
+	}
+	if got.RemainingMs != (5 * time.Minute).Milliseconds() {
+		t.Fatalf("remainingMs after polling = %d, want 5m", got.RemainingMs)
 	}
 }
 
@@ -54,13 +69,27 @@ func TestSessionExtend(t *testing.T) {
 	env.Clock.Advance(10 * time.Minute)
 	want := env.Clock.Now().Add(15 * time.Minute).UnixMilli()
 
-	if got := expiresAt(t, extend(c, token).WantStatus(http.StatusOK)); got != want {
-		t.Fatalf("expiresAt = %d, want %d", got, want)
+	got := readExpiry(t, extend(c, token).WantStatus(http.StatusOK))
+	if got.ExpiresAt != want || got.RemainingMs != (15*time.Minute).Milliseconds() {
+		t.Fatalf("extend = %+v, want expiresAt %d and remainingMs 15m", got, want)
 	}
 	if got := expiresAt(t, c.Get("/session").WantStatus(http.StatusOK)); got != want {
 		t.Fatalf("/session after extend = %d, want %d", got, want)
 	}
+}
+
+// The middleware slides the idle window before collage's CSRF check runs, so
+// even a refused (403) extend request keeps the session alive: any request
+// that carries the cookie counts as activity. The refusal itself is what
+// matters: the response carries no expiry.
+func TestSessionExtendWithoutTokenIsRefusedButStillTouched(t *testing.T) {
+	c, env := loggedIn(t)
+	env.Clock.Advance(10 * time.Minute)
 	extend(c, "").WantStatus(http.StatusForbidden)
+	want := env.Clock.Now().Add(15 * time.Minute).UnixMilli()
+	if got := expiresAt(t, c.Get("/session").WantStatus(http.StatusOK)); got != want {
+		t.Fatalf("expiresAt after refused extend = %d, want %d (touched by middleware)", got, want)
+	}
 }
 
 func TestSessionEndpointsAnswer401WithoutSession(t *testing.T) {
@@ -69,7 +98,7 @@ func TestSessionEndpointsAnswer401WithoutSession(t *testing.T) {
 	env.Clock.Advance(16 * time.Minute)
 
 	res := c.Get("/session").WantStatus(http.StatusUnauthorized)
-	if res.Body != `{"expiresAt":0}` {
+	if res.Body != `{"expiresAt":0,"remainingMs":0}` {
 		t.Fatalf("body = %q", res.Body)
 	}
 	extend(c, token).WantStatus(http.StatusUnauthorized)
@@ -83,5 +112,6 @@ func TestLayoutCarriesSessionExpiry(t *testing.T) {
 	want := env.Clock.Now().Add(15 * time.Minute).UnixMilli()
 	wantBody(t, c.Get("/").WantStatus(http.StatusOK),
 		`<body class="app" data-session-expires="`+strconv.FormatInt(want, 10)+`"`)
+	wantBody(t, c.Get("/").WantStatus(http.StatusOK), `data-session-remaining="900000"`)
 	wantBody(t, c.Get("/accounts/new").WantStatus(http.StatusOK), "data-track")
 }
