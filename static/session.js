@@ -190,12 +190,15 @@
     form.addEventListener("change", markDirty);
   });
 
-  // A sleeping laptop stops timers; look again as soon as the tab is back.
+  // A sleeping laptop stops timers and drops the network; look again as soon
+  // as the tab is back, the window is focused or the connection returns.
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") {
       check();
     }
   });
+  window.addEventListener("focus", check);
+  window.addEventListener("online", check);
 
   schedule();
 })();
