@@ -2,7 +2,9 @@ package legacy
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +22,8 @@ type Options struct {
 	KDF vault.KDFParams
 	// Out receives progress lines (never secrets); nil discards them.
 	Out io.Writer
+	// Err receives the paths a failed run could not clean up; nil discards them.
+	Err io.Writer
 }
 
 // Result summarizes a successful migration.
@@ -28,6 +32,10 @@ type Result struct {
 	RecoveryKey string
 }
 
+// afterCreateVault, when set by a test, runs between writing the vault row
+// and writing the accounts, to inject a failure or a cancellation there.
+var afterCreateVault func() error
+
 // oldRecord is one decrypted old account with its old id.
 type oldRecord struct {
 	id int64
@@ -35,7 +43,8 @@ type oldRecord struct {
 }
 
 // Migrate copies the old database into a new vault at o.To. Nothing is
-// written to o.From. On any error after o.To was created it is removed.
+// written to o.From. o.To appears only once the new vault is complete and
+// verified; on any error, including ctx ending, nothing is left behind.
 func Migrate(ctx context.Context, o Options) (Result, error) {
 	if o.From == "" || o.EnvFile == "" || o.To == "" {
 		return Result{}, errors.New("from, env and to are required")
@@ -46,6 +55,10 @@ func Migrate(ctx context.Context, o Options) (Result, error) {
 	out := o.Out
 	if out == nil {
 		out = io.Discard
+	}
+	errOut := o.Err
+	if errOut == nil {
+		errOut = io.Discard
 	}
 
 	secret, err := readSecret(o.EnvFile)
@@ -87,24 +100,35 @@ func Migrate(ctx context.Context, o Options) (Result, error) {
 		return Result{}, err
 	}
 
-	if err := createTarget(o.To); err != nil {
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+
+	// Everything is written to a temp file next to the target and renamed into
+	// place only once verified, so an interrupted run (even one killed with no
+	// chance to clean up) never leaves a partial vault at o.To.
+	tmp, err := createTemp(o.To)
+	if err != nil {
 		return Result{}, err
 	}
 	ok := false
 	defer func() {
 		if !ok {
-			removeTarget(o.To)
+			tmp.remove(errOut)
 		}
 	}()
 
-	if err := write(ctx, o.To, store.VaultRow{KDF: o.KDF, Pass: passWrap, Recovery: recWrap}, dek, records); err != nil {
+	if err := write(ctx, tmp.path, store.VaultRow{KDF: o.KDF, Pass: passWrap, Recovery: recWrap}, dek, records); err != nil {
 		return Result{}, err
 	}
-	if err := verify(ctx, o.To, master, recoveryKey, dek, records); err != nil {
+	if err := verify(ctx, tmp.path, master, recoveryKey, dek, records); err != nil {
 		return Result{}, fmt.Errorf("verification failed: %w", err)
 	}
-	fmt.Fprintln(out, "Verified the new vault.")
+	if err := tmp.commit(ctx, o.To); err != nil {
+		return Result{}, err
+	}
 	ok = true
+	fmt.Fprintln(out, "Verified the new vault.")
 	return Result{Accounts: len(records), RecoveryKey: recoveryKey}, nil
 }
 
@@ -123,22 +147,100 @@ func checkTargetAbsent(path string) error {
 	return nil
 }
 
-// createTarget creates the empty target file exclusively, so a file that
-// appeared after the existence check is never adopted or later deleted.
-func createTarget(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("create target directory: %w", err)
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("create target: %w", err)
-	}
-	return f.Close()
+// tempTarget is the file a run writes the new vault to before renaming it to
+// the target.
+type tempTarget struct {
+	path string
+	// dir is the target's directory and dirCreated whether this run made it.
+	dir        string
+	dirCreated bool
 }
 
-func removeTarget(path string) {
-	for _, p := range sidePaths(path) {
-		os.Remove(p)
+// createTemp creates an empty, exclusive, 0600 temp file named after target
+// in target's directory, creating that directory (0700) when missing.
+func createTemp(target string) (*tempTarget, error) {
+	t := &tempTarget{dir: filepath.Dir(target)}
+	if _, err := os.Lstat(t.dir); errors.Is(err, os.ErrNotExist) {
+		t.dirCreated = true
+	} else if err != nil {
+		return nil, fmt.Errorf("check target directory: %w", err)
+	}
+	if err := os.MkdirAll(t.dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create target directory: %w", err)
+	}
+	suffix := make([]byte, 8)
+	if _, err := rand.Read(suffix); err != nil {
+		return nil, err
+	}
+	t.path = target + ".tmp-" + hex.EncodeToString(suffix)
+	f, err := os.OpenFile(t.path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.removeDir(io.Discard)
+		return nil, fmt.Errorf("create temp file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		t.remove(io.Discard)
+		return nil, fmt.Errorf("create temp file: %w", err)
+	}
+	return t, nil
+}
+
+// commit makes the closed, verified temp file durable and renames it to
+// target, refusing when target appeared meanwhile.
+func (t *tempTarget) commit(ctx context.Context, target string) error {
+	// The store was closed, which checkpoints the WAL into the main file; a
+	// side file left over would hold data the rename would leave behind.
+	for _, p := range sidePaths(t.path)[1:] {
+		if _, err := os.Lstat(p); err == nil {
+			return fmt.Errorf("%s was left after closing the new vault", p)
+		}
+	}
+	f, err := os.OpenFile(t.path, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return fmt.Errorf("sync new vault: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// os.Rename replaces an existing file; look once more right before it.
+	if err := checkTargetAbsent(target); err != nil {
+		return err
+	}
+	if err := os.Rename(t.path, target); err != nil {
+		return fmt.Errorf("move new vault into place: %w", err)
+	}
+	// Best effort: persist the rename. Directories cannot be synced everywhere.
+	if d, err := os.Open(t.dir); err == nil {
+		_ = d.Sync()
+		d.Close()
+	}
+	return nil
+}
+
+// remove deletes the temp file and its SQLite side files, then the directory
+// if this run created it, reporting on w whatever could not be removed.
+func (t *tempTarget) remove(w io.Writer) {
+	for _, p := range sidePaths(t.path) {
+		if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(w, "migrate: could not remove %s: %v\n", p, err)
+		}
+	}
+	t.removeDir(w)
+}
+
+func (t *tempTarget) removeDir(w io.Writer) {
+	if !t.dirCreated {
+		return
+	}
+	if err := os.Remove(t.dir); err != nil && !errors.Is(err, os.ErrNotExist) {
+		fmt.Fprintf(w, "migrate: could not remove %s: %v\n", t.dir, err)
 	}
 }
 
@@ -257,6 +359,11 @@ func write(ctx context.Context, path string, row store.VaultRow, dek vault.DEK, 
 	defer s.Close()
 	if err := s.CreateVault(ctx, row); err != nil {
 		return err
+	}
+	if afterCreateVault != nil {
+		if err := afterCreateVault(); err != nil {
+			return err
+		}
 	}
 	rs := make([]vault.Record, len(records))
 	for i, r := range records {

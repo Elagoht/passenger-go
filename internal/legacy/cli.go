@@ -6,6 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"passenger-go/internal/vault"
 )
@@ -43,7 +46,11 @@ func runCLI(args []string, stdout, stderr io.Writer, kdf vault.KDFParams) int {
 		return 2
 	}
 
-	res, err := Migrate(context.Background(), Options{From: *from, EnvFile: *env, To: *to, KDF: kdf, Out: stdout})
+	// Ctrl-C or a service stop ends the run through ctx, so Migrate can remove
+	// its temp file instead of the process dying mid-write.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	res, err := Migrate(ctx, Options{From: *from, EnvFile: *env, To: *to, KDF: kdf, Out: stdout, Err: stderr})
 	if err != nil {
 		fmt.Fprintf(stderr, "migrate: %v\n", err)
 		return 1

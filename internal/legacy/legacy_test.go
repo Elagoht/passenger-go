@@ -12,6 +12,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -488,5 +489,140 @@ func TestRunCLIFailure(t *testing.T) {
 	}
 	if stderr.Len() == 0 {
 		t.Fatal("want error on stderr")
+	}
+}
+
+// assertNothingLeft checks that a failed run left no target, no temp file and
+// (when the run created it) no target directory.
+func assertNothingLeft(t *testing.T, f fixture, dirCreated bool) {
+	t.Helper()
+	assertAbsent(t, f.to)
+	dir := filepath.Dir(f.to)
+	entries, err := os.ReadDir(dir)
+	if dirCreated {
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s should have been removed (entries %v, err %v)", dir, entries, err)
+		}
+		return
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), filepath.Base(f.to)) {
+			t.Fatalf("left behind: %s", e.Name())
+		}
+	}
+}
+
+func TestMigrateFailureAfterCreateVaultLeavesNothing(t *testing.T) {
+	f := newFixture(t, true, threeAccounts())
+	afterCreateVault = func() error { return errors.New("injected") }
+	t.Cleanup(func() { afterCreateVault = nil })
+
+	if _, err := Migrate(context.Background(), f.options()); err == nil || !strings.Contains(err.Error(), "injected") {
+		t.Fatalf("err = %v", err)
+	}
+	assertNothingLeft(t, f, true)
+}
+
+func TestMigrateFailureKeepsExistingDirectory(t *testing.T) {
+	f := newFixture(t, true, threeAccounts())
+	if err := os.MkdirAll(filepath.Dir(f.to), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	afterCreateVault = func() error { return errors.New("injected") }
+	t.Cleanup(func() { afterCreateVault = nil })
+
+	if _, err := Migrate(context.Background(), f.options()); err == nil {
+		t.Fatal("want error")
+	}
+	assertNothingLeft(t, f, false)
+}
+
+// A signal cancels the context; the run stops and cleans up.
+func TestMigrateCanceledLeavesNothing(t *testing.T) {
+	f := newFixture(t, true, threeAccounts())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	afterCreateVault = func() error { cancel(); return nil }
+	t.Cleanup(func() { afterCreateVault = nil })
+
+	if _, err := Migrate(ctx, f.options()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	assertNothingLeft(t, f, true)
+}
+
+func TestMigrateSuccessLeavesNoTempFiles(t *testing.T) {
+	f := newFixture(t, true, threeAccounts())
+	if _, err := Migrate(context.Background(), f.options()); err != nil {
+		t.Fatal(err)
+	}
+	assertNoSideFiles(t, f.to)
+	entries, err := os.ReadDir(filepath.Dir(f.to))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != filepath.Base(f.to) {
+		t.Fatalf("directory holds %v, want only %s", entries, filepath.Base(f.to))
+	}
+	info, err := os.Stat(f.to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Fatalf("mode = %v, want 0600", info.Mode().Perm())
+	}
+}
+
+// A process killed mid-write (SIGKILL, power loss) runs no cleanup, so the
+// target must not exist until the vault is complete and verified.
+func TestMigrateTargetAppearsOnlyWhenComplete(t *testing.T) {
+	f := newFixture(t, true, threeAccounts())
+	var seen error
+	afterCreateVault = func() error {
+		_, seen = os.Lstat(f.to)
+		return nil
+	}
+	t.Cleanup(func() { afterCreateVault = nil })
+
+	if _, err := Migrate(context.Background(), f.options()); err != nil {
+		t.Fatal(err)
+	}
+	if !errors.Is(seen, os.ErrNotExist) {
+		t.Fatalf("%s existed while the vault was being written (err=%v)", f.to, seen)
+	}
+}
+
+func TestMigrateReportsWhatItCannotRemove(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs directory permissions that bind the current user")
+	}
+	f := newFixture(t, true, threeAccounts())
+	dir := filepath.Dir(f.to)
+	afterCreateVault = func() error {
+		// Entries of a read-only directory cannot be removed.
+		if err := os.Chmod(dir, 0o500); err != nil {
+			return err
+		}
+		return errors.New("injected")
+	}
+	t.Cleanup(func() {
+		afterCreateVault = nil
+		os.Chmod(dir, 0o700)
+	})
+	opts := f.options()
+	errOut := &bytes.Buffer{}
+	opts.Err = errOut
+
+	if _, err := Migrate(context.Background(), opts); err == nil {
+		t.Fatal("want error")
+	}
+	if !strings.Contains(errOut.String(), "could not remove "+f.to+".tmp-") {
+		t.Fatalf("stderr = %q", errOut.String())
+	}
+	if _, err := os.Lstat(f.to); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("%s must not exist (err=%v)", f.to, err)
 	}
 }
