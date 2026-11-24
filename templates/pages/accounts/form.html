@@ -1,6 +1,6 @@
 <h1>{{if .ID}}Account details{{else}}New account{{end}}</h1>
 
-<form method="post" action="{{if .ID}}{{pageURL "account" "id" .ID}}{{else}}{{pageURL "account-new"}}{{end}}" autocomplete="off">
+<form method="post" action="{{if .ID}}{{pageURL "account" "id" .ID}}{{else}}{{pageURL "account-new"}}{{end}}" autocomplete="off" data-track>
   {{csrfToken}}
 
   <label>

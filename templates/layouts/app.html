@@ -12,7 +12,11 @@
 </head>
 
 <body class="app" data-session-expires="{{.ExpiresAtMS}}">
-  <div id="session-banner" class="session-banner" role="alert" hidden></div>
+  <div id="session-banner" class="session-banner" role="alert" hidden>
+    <span data-session-message></span>
+    <button type="button" data-session-extend>Extend</button>
+    <button type="button" data-session-signout>Sign out</button>
+  </div>
   <header class="site-header">
     <div>
       <a class="brand" href="/">

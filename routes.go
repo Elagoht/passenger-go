@@ -5,6 +5,7 @@ import (
 
 	accountactions "passenger-go/actions/accounts"
 	authactions "passenger-go/actions/auth"
+	sessionactions "passenger-go/actions/session"
 	"passenger-go/internal/web"
 	"passenger-go/pages"
 	accountpages "passenger-go/pages/accounts"
@@ -25,6 +26,8 @@ func register(app *collage.App, deps *web.Deps) error {
 		accountpages.Detail(deps),
 		accountpages.Delete(deps),
 		accountactions.Passphrase(deps),
+		sessionactions.Status(deps),
+		sessionactions.Extend(deps),
 		pages.Generate(deps),
 		pages.Import(deps),
 		pages.Export(deps),
