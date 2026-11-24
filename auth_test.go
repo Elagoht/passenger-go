@@ -265,6 +265,9 @@ func TestLogout(t *testing.T) {
 
 	res = c.Submit(home, "/logout", nil).WantStatus(http.StatusSeeOther)
 	wantLocation(t, res, "/login")
+	if line := sessionSetCookie(res); !strings.Contains(line, "Max-Age=0") {
+		t.Fatalf("logout did not clear the session cookie: %q", line)
+	}
 	wantLocation(t, c.Get("/").WantStatus(http.StatusSeeOther), "/login")
 
 	// The old cookie no longer opens anything: the session is gone server-side.

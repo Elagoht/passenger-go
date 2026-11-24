@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,20 +16,16 @@ import (
 
 // fakeCookie stands in for the session plugin's session.
 type fakeCookie struct {
-	data    map[string]string
-	sets    int
-	cleared bool
+	data map[string]string
+	sets int
 }
 
 func (f *fakeCookie) Get(key string) string { return f.data[key] }
+
 func (f *fakeCookie) Set(key, value string) error {
 	f.data[key] = value
 	f.sets++
 	return nil
-}
-func (f *fakeCookie) Clear() {
-	f.data = map[string]string{}
-	f.cleared = true
 }
 
 type fakeCookieKey struct{}
@@ -65,20 +62,39 @@ func testDEK(b byte) vault.DEK {
 	return d
 }
 
-// serve sends a GET of path carrying handle (none when "") through
-// VaultSession and returns the plugin's fake and what the handler saw.
-func serve(m *session.Manager, path, handle string) (*fakeCookie, *session.Session) {
+// served is what one request through VaultSession left behind.
+type served struct {
+	cookie *fakeCookie
+	seen   *session.Session // the session the handler saw
+	dead   bool             // the flag SessionCookie reads
+}
+
+// serveWith sends a GET of path carrying handle (none when "") through
+// VaultSession to handler, with SessionCookie's dead flag in the context.
+func serveWith(m *session.Manager, path, handle string, handler func(http.ResponseWriter, *http.Request)) served {
 	f := &fakeCookie{data: map[string]string{}}
 	if handle != "" {
 		f.data[cookie.UserKey] = handle
 	}
-	var seen *session.Session
+	var out served
+	var dead atomic.Bool
 	h := VaultSession(m)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen, _ = session.FromContext(r.Context())
+		out.seen, _ = session.FromContext(r.Context())
+		if handler != nil {
+			handler(w, r)
+		}
 	}))
 	r := httptest.NewRequest("GET", path, nil)
-	h.ServeHTTP(httptest.NewRecorder(), r.WithContext(context.WithValue(r.Context(), fakeCookieKey{}, f)))
-	return f, seen
+	ctx := context.WithValue(r.Context(), fakeCookieKey{}, f)
+	ctx = context.WithValue(ctx, deadKey{}, &dead)
+	h.ServeHTTP(httptest.NewRecorder(), r.WithContext(ctx))
+	out.cookie, out.dead = f, dead.Load()
+	return out
+}
+
+// serve is serveWith a handler that does nothing but look.
+func serve(m *session.Manager, path, handle string) served {
+	return serveWith(m, path, handle, nil)
 }
 
 func TestVaultSession(t *testing.T) {
@@ -86,25 +102,30 @@ func TestVaultSession(t *testing.T) {
 	m, c := managerAt()
 	s, _ := m.Create(testDEK(1))
 
-	if _, seen := serve(m, "/", ""); seen != nil {
-		t.Fatal("no handle: want no session")
+	if res := serve(m, "/", ""); res.seen != nil || res.dead {
+		t.Fatal("no handle: want no session, not dead")
 	}
-	f, seen := serve(m, "/", "stale")
-	if seen != nil || !f.cleared {
-		t.Fatalf("unknown handle: session %v, cleared %v; want none, cleared", seen, f.cleared)
+
+	// An unknown handle grants nothing, and is neither cleared nor set
+	// again: the response is marked dead instead.
+	res := serve(m, "/", "stale")
+	if res.seen != nil || res.cookie.sets != 0 || res.cookie.data[cookie.UserKey] != "stale" || !res.dead {
+		t.Fatalf("unknown handle: session %v, %d sets, handle %q, dead %v; want none, 0, kept, dead",
+			res.seen, res.cookie.sets, res.cookie.data[cookie.UserKey], res.dead)
 	}
-	f, seen = serve(m, "/", s.Handle)
-	if seen == nil || f.cleared {
-		t.Fatal("live handle: want a session, not cleared")
+
+	res = serve(m, "/", s.Handle)
+	if res.seen == nil || res.dead {
+		t.Fatal("live handle: want a session, not dead")
 	}
-	if f.sets != 1 || f.data[cookie.UserKey] != s.Handle {
-		t.Fatalf("live handle: %d sets of %q, want the handle set again once", f.sets, f.data[cookie.UserKey])
+	if res.cookie.sets != 1 || res.cookie.data[cookie.UserKey] != s.Handle {
+		t.Fatalf("live handle: %d sets of %q, want the handle set again once", res.cookie.sets, res.cookie.data[cookie.UserKey])
 	}
 
 	// /session peeks and leaves the cookie alone; /session/extend touches.
 	c.advance(10 * time.Minute)
-	if f, _ := serve(m, "/session", s.Handle); f.sets != 0 {
-		t.Fatalf("/session set the cookie %d times", f.sets)
+	if res := serve(m, "/session", s.Handle); res.cookie.sets != 0 || res.dead {
+		t.Fatalf("/session set the cookie %d times (dead %v)", res.cookie.sets, res.dead)
 	}
 	c.advance(6 * time.Minute)
 	if _, ok := m.Peek(s.Handle); ok {
@@ -112,8 +133,8 @@ func TestVaultSession(t *testing.T) {
 	}
 	s2, _ := m.Create(testDEK(2))
 	c.advance(10 * time.Minute)
-	if f, _ := serve(m, "/session/extend", s2.Handle); f.sets != 1 {
-		t.Fatalf("/session/extend set the cookie %d times, want 1", f.sets)
+	if res := serve(m, "/session/extend", s2.Handle); res.cookie.sets != 1 {
+		t.Fatalf("/session/extend set the cookie %d times, want 1", res.cookie.sets)
 	}
 	c.advance(10 * time.Minute)
 	if _, ok := m.Peek(s2.Handle); !ok {
@@ -121,19 +142,81 @@ func TestVaultSession(t *testing.T) {
 	}
 }
 
-// An expired session's handle clears the cookie, and the manager's copy of
-// the DEK is gone.
+// An expired session's handle grants nothing and marks the response dead,
+// and the manager's copy of the DEK is gone.
 func TestVaultSessionExpired(t *testing.T) {
 	usePlugin(t)
 	m, c := managerAt()
 	s, _ := m.Create(testDEK(5))
 	c.advance(16 * time.Minute)
-	f, seen := serve(m, "/accounts/new", s.Handle)
-	if seen != nil || !f.cleared {
-		t.Fatalf("expired: session %v, cleared %v", seen, f.cleared)
+	res := serve(m, "/accounts/new", s.Handle)
+	if res.seen != nil || res.cookie.sets != 0 || !res.dead {
+		t.Fatalf("expired: session %v, %d sets, dead %v", res.seen, res.cookie.sets, res.dead)
 	}
 	if m.Len() != 0 {
 		t.Fatalf("expired session still held: Len = %d", m.Len())
+	}
+}
+
+// A request admitted before a rotation and answered after it finds its
+// handle gone when the response is written: it does not set the revoked
+// handle again, and marks the response dead.
+func TestVaultSessionRotatedDuringTheRequest(t *testing.T) {
+	usePlugin(t)
+	m, _ := managerAt()
+	s, _ := m.Create(testDEK(3))
+	var rotated *session.Session
+	res := serveWith(m, "/", s.Handle, func(w http.ResponseWriter, r *http.Request) {
+		rotated, _ = m.Rotate(s.Handle) // another request's passphrase change
+		w.WriteHeader(http.StatusOK)
+	})
+	if res.seen == nil {
+		t.Fatal("the request was admitted with a live session")
+	}
+	if res.cookie.sets != 0 || !res.dead {
+		t.Fatalf("%d sets, dead %v; want the old handle not set again, dead", res.cookie.sets, res.dead)
+	}
+	if _, ok := m.Peek(rotated.Handle); !ok {
+		t.Fatal("the rotated session is gone")
+	}
+}
+
+// A handler that changes the handle (sign-in, the rotation itself, sign-out)
+// keeps its change: the old handle is not set over it, and the response is
+// not dead.
+func TestVaultSessionKeepsTheHandlersChange(t *testing.T) {
+	usePlugin(t)
+	m, _ := managerAt()
+	for name, change := range map[string]func(*fakeCookie, string){
+		"rotate": func(f *fakeCookie, handle string) {
+			n, _ := m.Rotate(handle)
+			_ = f.Set(cookie.UserKey, n.Handle)
+		},
+		"sign out": func(f *fakeCookie, handle string) {
+			m.Delete(handle)
+			_ = f.Set(cookie.UserKey, "")
+		},
+	} {
+		s, _ := m.Create(testDEK(4))
+		var want string
+		res := serveWith(m, "/", s.Handle, func(w http.ResponseWriter, r *http.Request) {
+			f := r.Context().Value(fakeCookieKey{}).(*fakeCookie)
+			change(f, s.Handle)
+			want = f.data[cookie.UserKey]
+		})
+		if res.dead || res.cookie.sets != 1 || res.cookie.data[cookie.UserKey] != want {
+			t.Errorf("%s: dead %v, %d sets, handle %q; want not dead, the handler's one set kept",
+				name, res.dead, res.cookie.sets, res.cookie.data[cookie.UserKey])
+		}
+	}
+
+	// A sign-in over a dead handle is let through too.
+	res := serveWith(m, "/login", "stale", func(w http.ResponseWriter, r *http.Request) {
+		n, _ := m.Create(testDEK(6))
+		_ = r.Context().Value(fakeCookieKey{}).(*fakeCookie).Set(cookie.UserKey, n.Handle)
+	})
+	if res.dead {
+		t.Error("sign-in over a dead handle marked the response dead")
 	}
 }
 
@@ -142,8 +225,7 @@ func TestVaultSessionSkipsStatic(t *testing.T) {
 	m, c := managerAt()
 	s, _ := m.Create(testDEK(1))
 	c.advance(10 * time.Minute)
-	f, seen := serve(m, "/static/app.css", s.Handle)
-	if seen != nil || f.sets != 0 {
+	if res := serve(m, "/static/app.css", s.Handle); res.seen != nil || res.cookie.sets != 0 || res.dead {
 		t.Fatal("/static/ request must not resolve the session or set the cookie")
 	}
 	c.advance(6 * time.Minute)

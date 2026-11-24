@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"time"
 
 	"github.com/Elagoht/collage/pkg/collage"
 
@@ -22,6 +21,7 @@ import (
 	validate "github.com/Elagoht/collage-validate"
 
 	"passenger-go/internal/config"
+	vaultsession "passenger-go/internal/session"
 	"passenger-go/internal/store"
 	"passenger-go/internal/web"
 )
@@ -87,16 +87,20 @@ func plugins(st *store.Store, bans *fail2ban.Plugin) []collage.Plugin {
 }
 
 // newBans is elagoht/fail2ban: probe and not-found bans as it comes, and the
-// jail web.Throttle strikes on every secret guess. Its limit is far above the
-// backoff's, so it only bans a client that keeps guessing for an hour.
+// jail web.Throttle strikes on every secret guess, with the limits
+// web.SecretJailSettings explains.
+//
+// Loopback is never counted or banned. A reverse proxy on the same machine
+// that sends no X-Forwarded-For (or one TRUSTED_PROXIES does not name) puts
+// every client on 127.0.0.1, and three probes from anyone would ban the whole
+// site, its owner included, for an hour. The plugin only skips a local peer
+// that forwards another address; this covers the one that forwards none. The
+// backoff on secret guesses (internal/ratelimit) still applies to it.
 func newBans() *fail2ban.Plugin {
 	return fail2ban.New(fail2ban.Options{
+		Allow: []string{"127.0.0.0/8", "::1/128"},
 		Jails: map[string]fail2ban.Jail{
-			web.SecretJail: {
-				MaxRetry: 30,
-				FindTime: collage.Duration(time.Hour),
-				BanTime:  collage.Duration(time.Hour),
-			},
+			web.SecretJail: web.SecretJailSettings,
 		},
 	})
 }
@@ -113,7 +117,7 @@ func newSession(cfg config.Config) *session.Plugin {
 	return session.New(session.Options{
 		Key:         randomKey(),
 		Encrypt:     true,
-		Cookie:      "passenger_session",
+		Cookie:      vaultsession.CookieName,
 		SameSite:    "strict",
 		IdleTimeout: collage.Duration(cfg.SessionIdle),
 		MaxAge:      collage.Duration(cfg.SessionMax),

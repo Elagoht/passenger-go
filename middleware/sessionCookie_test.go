@@ -102,3 +102,25 @@ func TestSessionCookieForTheBrowserSession(t *testing.T) {
 		}
 	}
 }
+
+// On a response VaultSession marked dead, no session cookie goes out at all,
+// a clearing one included; other cookies do.
+func TestSessionCookieDropsEverySessionCookieWhenDead(t *testing.T) {
+	for _, maxAge := range []int{900, -1} {
+		for _, path := range []string{"/", "/session"} {
+			plugin := fakePlugin(maxAge, true)
+			h := SessionCookie(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				deadFlag(r.Context()).Store(true)
+				plugin.ServeHTTP(w, r)
+			}))
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+			if got := sessionCookies(rec); len(got) != 0 {
+				t.Errorf("%s maxAge=%d: session cookies %v, want none", path, maxAge, got)
+			}
+			if len(rec.Result().Cookies()) != 1 {
+				t.Errorf("%s maxAge=%d: another cookie was dropped", path, maxAge)
+			}
+		}
+	}
+}

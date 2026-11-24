@@ -24,7 +24,7 @@ func SessionFrom(rc *collage.RenderContext) *session.Session {
 // which a guarded page or action never sees.
 var ErrNoSession = errors.New("web: no session on a guarded render")
 
-// RequireSessionFrom is SessionFrom for handlers behind guards.Session. It
+// RequireSessionFrom is SessionFrom for handlers behind guards.SignedIn. It
 // returns an independent copy of the session, DEK array included, so the
 // caller can wipe its own copy after use without touching the request's.
 func RequireSessionFrom(rc *collage.RenderContext) (*session.Session, error) {

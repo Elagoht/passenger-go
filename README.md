@@ -44,7 +44,7 @@ The vault key is derived from your master passphrase with Argon2id and is never 
 
 Over plain HTTP the session cookie cannot be marked `Secure`. For anything beyond a private network such as Tailscale, run Passenger-Go behind a TLS reverse proxy with `HOST=127.0.0.1` and `TRUSTED_PROXIES` set to the proxy's address.
 
-Wrong passphrase, recovery-key and setup-code guesses are throttled per client address (an IPv6 client counts as its whole /64). Behind a proxy every request comes from the proxy's address, so unless `TRUSTED_PROXIES` names the proxy, all clients share one budget and a few wrong guesses from anyone make everyone wait.
+Wrong passphrase, recovery-key and setup-code guesses are throttled per client address (an IPv6 client counts as its whole /64). Behind a proxy every request comes from the proxy's address, so unless `TRUSTED_PROXIES` names the proxy, all clients share one budget and a few wrong guesses from anyone make everyone wait. A client that keeps guessing past the back-off, 100 wrong guesses within a day with no right one between them (about seven hours of guessing as fast as the back-off allows), is banned from the whole site for a day. Requests from loopback (`127.0.0.0/8`, `::1`) are never banned, so a proxy on the same machine cannot get every client banned, but the back-off still applies to them.
 
 ## Recommended Way to Run
 
@@ -66,7 +66,7 @@ Then serve it on your Tailscale network:
 tailscale serve --bg [YOUR_PORT_HERE]
 ```
 
-If whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale serve`) sends an `X-Forwarded-For` header, set `TRUSTED_PROXIES` in `/opt/passenger-go/.env` to the proxy's address, `127.0.0.1` when it runs on the same machine, and restart the service. Otherwise every client shares the proxy's address and with it one rate-limit budget for passphrase guesses, and one client probing for files gets the proxy, and with it everyone, banned.
+Whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale serve`) must send an `X-Forwarded-For` header, and `TRUSTED_PROXIES` in `/opt/passenger-go/.env` must name the proxy's address, `127.0.0.1` when it runs on the same machine; restart the service after changing it. Otherwise every client shares the proxy's address and with it one rate-limit budget for passphrase guesses. A proxy on the same machine is never banned (loopback addresses are exempt), so one client probing for files cannot get everyone banned, but it then goes unbanned too; a proxy on another machine that is not named gets banned, and with it everyone.
 
 ### First run: setup code
 

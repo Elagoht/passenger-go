@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/Elagoht/collage/pkg/collagetest"
 
 	"passenger-go/internal/session"
+	"passenger-go/internal/web"
 )
 
 // The session cookie is the elagoht/session plugin's, encrypted, HttpOnly,
@@ -145,7 +147,8 @@ func TestQuietPathsDoNotRefreshTheCookie(t *testing.T) {
 
 // When the session expires the manager's DEK is gone (wiped as it is removed,
 // see internal/session's TestExpiredDEKZeroed), and the request that finds it
-// expired clears the cookie.
+// expired sends no session cookie: neither the dead handle again nor a clear
+// (see middleware.VaultSession). The dead handle grants nothing.
 func TestExpiredSessionDropsTheDEK(t *testing.T) {
 	c, env := loggedIn(t)
 	if n := env.Deps.Sessions.Len(); n != 1 {
@@ -157,9 +160,8 @@ func TestExpiredSessionDropsTheDEK(t *testing.T) {
 	if n := env.Deps.Sessions.Len(); n != 0 {
 		t.Fatalf("sessions after expiry = %d, want 0: the DEK is still held", n)
 	}
-	line := sessionSetCookie(res)
-	if !strings.Contains(line, "Max-Age=0") {
-		t.Fatalf("expired session's cookie not cleared: %q", line)
+	if line := sessionSetCookie(res); line != "" {
+		t.Fatalf("expired session's response set the session cookie: %q", line)
 	}
 	// The session is gone for /session too.
 	c.Get("/session").WantStatus(http.StatusUnauthorized)
@@ -211,28 +213,48 @@ func TestProbesAreBanned(t *testing.T) {
 	}
 }
 
-// Every secret guess is also struck in fail2ban's secret jail: a client that
-// keeps guessing past the backoff, for an hour, is banned from the whole site.
+// A reverse proxy on the same machine that sends no X-Forwarded-For puts every
+// client on 127.0.0.1: probes from there are never counted, or one scanner
+// would ban the whole site, its owner included.
+func TestLoopbackIsNeverBanned(t *testing.T) {
+	c, env := newTestApp(t)
+	setUp(t, c, env, testPass)
+	local := collagetest.New(t, env.App.Handler())
+	get := func(target string) *collagetest.Response {
+		req := local.Request(http.MethodGet, target, nil)
+		req.RemoteAddr = "127.0.0.1:41234"
+		return local.Do(req)
+	}
+	for range 10 {
+		get("/.env")
+	}
+	get("/login").WantStatus(http.StatusOK)
+}
+
+// Every secret guess is struck in fail2ban's secret jail, through
+// web.Throttle: MaxRetry strikes ban the client from the whole site. That a
+// client can reach MaxRetry within FindTime past the backoff is
+// internal/web's TestSecretJailIsReachable, on the limiter's clock; here every
+// strike lands at once on fail2ban's own clock, the real one.
 func TestPersistentGuessingIsBanned(t *testing.T) {
-	t.Setenv("SESSION_IDLE", "1h") // the clock moves 30 minutes between c's requests
 	c, env := loggedIn(t)
+	// The strikes of earlier guesses, as fail2ban counts them, from the
+	// address every test request comes from.
+	earlier := httptest.NewRequest(http.MethodPost, "/login", nil)
+	for range web.SecretJailSettings.MaxRetry - 2 {
+		env.Deps.Bans.Report(earlier, web.SecretJail)
+	}
 	guest := collagetest.New(t, env.App.Handler())
-	guess := func(client *collagetest.Client, target string, v url.Values) {
+	guess := func() {
 		t.Helper()
 		env.Clock.Advance(10 * time.Minute) // past the backoff, which reads this clock
-		page := client.Get(target).WantStatus(http.StatusOK)
-		client.Submit(page, target, v).WantStatus(http.StatusUnprocessableEntity)
+		page := guest.Get("/login").WantStatus(http.StatusOK)
+		guest.Submit(page, "/login", url.Values{"passphrase": {"wrong passphrase!"}}).
+			WantStatus(http.StatusUnprocessableEntity)
 	}
-	// Ten per form (each form has its own request limit of ten at once), all
-	// from one address: thirty strikes.
-	for i := range 10 {
-		guess(c, "/export", url.Values{"passphrase": {"wrong passphrase!"}})
-		guess(c, "/settings/recovery", url.Values{"current": {"wrong passphrase!"}})
-		if i == 9 { // 29 strikes: not yet
-			c.Get("/").WantStatus(http.StatusOK)
-		}
-		guess(guest, "/login", url.Values{"passphrase": {"wrong passphrase!"}})
-	}
+	guess() // MaxRetry-1: not yet
+	c.Get("/").WantStatus(http.StatusOK)
+	guess()
 	c.Get("/").WantStatus(http.StatusForbidden)
 }
 

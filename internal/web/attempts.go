@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"time"
 
+	fail2ban "github.com/Elagoht/collage-fail2ban"
 	"github.com/Elagoht/collage/pkg/collage"
 )
 
@@ -24,9 +25,20 @@ func limiterKey(ip netip.Addr) netip.Addr {
 }
 
 // SecretJail is the elagoht/fail2ban jail every secret guess is struck in.
-// Its limit (see plugins.go) is far above the backoff's, so it only bans a
-// client that keeps guessing for a long time.
 const SecretJail = "secret"
+
+// SecretJailSettings are SecretJail's limits, given to fail2ban in plugins.go.
+// The backoff (ratelimit.Limiter) admits about 25 guesses in a client's first
+// hour, then one every five minutes, 12 an hour: a jail counting over one hour
+// could never fill past that, so it counts over a day. 100 admitted guesses
+// with no right one between them take about seven hours of guessing; such a
+// client is banned from the whole site for a day. TestSecretJailIsReachable
+// checks the arithmetic against the limiter.
+var SecretJailSettings = fail2ban.Jail{
+	MaxRetry: 100,
+	FindTime: collage.Duration(24 * time.Hour),
+	BanTime:  collage.Duration(24 * time.Hour),
+}
 
 // Throttle is called before checking a guessed secret (passphrase, recovery
 // key, setup code). When r's client is backing off it returns the message for

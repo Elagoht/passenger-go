@@ -159,6 +159,42 @@ func TestChangePassphrase(t *testing.T) {
 	wantBody(t, fresh.Get("/").WantStatus(http.StatusOK), "GitHub")
 }
 
+// A request still carrying the cookie from before a passphrase change (one
+// sent from another tab, or answered after the change) is refused, and its
+// response sets no session cookie at all: a clear, or the old handle again,
+// landing after the change's redirect would replace the rotated cookie and
+// sign the owner out.
+func TestOldCookieAfterPassphraseChangeSetsNothing(t *testing.T) {
+	owner, env := loggedIn(t)
+	page := owner.Get("/settings/passphrase").WantStatus(http.StatusOK)
+	before := sessionCookieValue(t, page)
+	res := owner.Submit(page, "/settings/passphrase", url.Values{
+		"current": {testPass}, "passphrase": {otherPass}, "confirm": {otherPass},
+	}).WantStatus(http.StatusSeeOther)
+	if after := sessionCookieValue(t, res); after == before {
+		t.Fatal("the change did not rewrite the cookie")
+	}
+
+	stale := collagetest.New(t, env.App.Handler())
+	send := func(target string) *collagetest.Response {
+		req := stale.Request(http.MethodGet, target, nil)
+		req.AddCookie(&http.Cookie{Name: session.CookieName, Value: before})
+		res := stale.Do(req)
+		if line := sessionSetCookie(res); line != "" {
+			t.Errorf("GET %s with the old cookie set the session cookie: %s", target, line)
+		}
+		return res
+	}
+	wantLocation(t, send("/").WantStatus(http.StatusSeeOther), "/login")
+	wantLocation(t, send("/generate").WantStatus(http.StatusSeeOther), "/login?next=%2Fgenerate")
+	send("/session").WantStatus(http.StatusUnauthorized)
+	// A dead cookie is no session for the login page either: no loop home.
+	send("/login").WantStatus(http.StatusOK)
+
+	// The owner's rotated session is untouched.
+	owner.Get("/").WantStatus(http.StatusOK)
+}
+
 func TestRegenerateRecoveryKey(t *testing.T) {
 	owner, env := newTestApp(t)
 	oldKey := setUp(t, owner, env, testPass)
