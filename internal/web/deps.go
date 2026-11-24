@@ -3,6 +3,7 @@
 package web
 
 import (
+	"sync"
 	"time"
 
 	"passenger-go/internal/ratelimit"
@@ -24,4 +25,11 @@ type Deps struct {
 	// recovery-key confirmation.
 	SetupCode *SetupCode
 	Pending   *PendingSetup
+
+	// WrapMu is held by every request that changes the stored wraps, from
+	// reading the vault row through storing the new wraps (and the session
+	// changes that follow), so two of them never both start from the same row:
+	// a double-submitted recovery cannot show a key that a parallel one
+	// overwrote.
+	WrapMu sync.Mutex
 }

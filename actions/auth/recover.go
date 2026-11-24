@@ -35,6 +35,8 @@ func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 		} else if !ok {
 			return throttled(rc, msg), nil
 		}
+		d.WrapMu.Lock()
+		defer d.WrapMu.Unlock()
 		row, err := d.Store.Vault(ctx)
 		if err != nil {
 			return nil, err

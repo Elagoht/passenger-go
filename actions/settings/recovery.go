@@ -17,6 +17,8 @@ func Recovery(d *web.Deps) *collage.Action {
 	return collage.NewAction("settings-recovery").
 		WithMethods(http.MethodPost).
 		WithHandler(func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
+			d.WrapMu.Lock()
+			defer d.WrapMu.Unlock()
 			dek, kdf, refused, err := unlock(ctx, d, rc)
 			if err != nil || refused != nil {
 				return refused, err

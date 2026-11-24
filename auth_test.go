@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/Elagoht/collage/pkg/collagetest"
 
 	"passenger-go/internal/session"
+	"passenger-go/internal/vault"
 )
 
 const (
@@ -317,4 +319,63 @@ func TestRecover(t *testing.T) {
 	page = other.Get("/recover").WantStatus(http.StatusOK)
 	typed = strings.ToLower(strings.ReplaceAll(newKey, "-", " "))
 	other.Submit(page, "/recover", recoverValues(typed, testPass, testPass)).WantStatus(http.StatusOK)
+}
+
+// Concurrent recoveries with the same key: the first to store its wraps wins;
+// the others then hold a used key and are refused. Whatever key the winner
+// shows is the one stored.
+func TestConcurrentRecoverStoresTheShownKey(t *testing.T) {
+	owner, env := newTestApp(t)
+	oldKey := setUp(t, owner, env, testPass)
+
+	const n = 4 // within the limiter's free attempts
+	clients := make([]*collagetest.Client, n)
+	pages := make([]*collagetest.Response, n)
+	for i := range clients {
+		clients[i] = collagetest.New(t, env.App.Handler())
+		pages[i] = clients[i].Get("/recover").WantStatus(http.StatusOK)
+	}
+	results := make([]*collagetest.Response, n)
+	var wg sync.WaitGroup
+	for i := range clients {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i] = clients[i].Submit(pages[i], "/recover", recoverValues(oldKey, otherPass, otherPass))
+		}()
+	}
+	wg.Wait()
+
+	shown := ""
+	for _, res := range results {
+		switch res.Status {
+		case http.StatusOK:
+			if shown != "" {
+				t.Fatal("more than one recovery succeeded")
+			}
+			shown = recoveryKeyRE.FindString(res.Body)
+		case http.StatusUnprocessableEntity:
+			wantBody(t, res, "Wrong recovery key")
+		default:
+			t.Fatalf("status = %d:\n%s", res.Status, res.Body)
+		}
+	}
+	if shown == "" {
+		t.Fatal("no recovery succeeded")
+	}
+	row, err := env.Deps.Store.Vault(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dek, err := vault.Unwrap(otherPass, row.Pass, row.KDF, vault.AADPass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, err := vault.Unwrap(vault.NormalizeRecoveryKey(shown), row.Recovery, row.KDF, vault.AADRecovery)
+	if err != nil {
+		t.Fatalf("the shown recovery key does not open the vault: %v", err)
+	}
+	if rec != dek {
+		t.Fatal("the shown recovery key opens a different key")
+	}
 }

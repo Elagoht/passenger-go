@@ -22,7 +22,8 @@ func refuse(rc *collage.RenderContext, status int, msg string) *collage.ActionRe
 // unlock checks the current passphrase the way login does (throttled, in a KDF
 // slot) and returns the DEK it unwraps, which the caller must wipe, and the
 // vault's KDF parameters. When the passphrase is refused the DEK is zero and
-// the result is the answer to send.
+// the result is the answer to send. The caller holds d.WrapMu, so the row read
+// here is still the stored one when the caller writes its new wrap.
 func unlock(ctx context.Context, d *web.Deps, rc *collage.RenderContext) (vault.DEK, vault.KDFParams, *collage.ActionResult, error) {
 	r := rc.Request
 	if msg, ok, err := d.Throttle(r); err != nil {
@@ -62,6 +63,8 @@ func Passphrase(d *web.Deps) *collage.Action {
 			}
 			defer s.DEK.Wipe()
 
+			d.WrapMu.Lock()
+			defer d.WrapMu.Unlock()
 			dek, kdf, refused, err := unlock(ctx, d, rc)
 			if err != nil || refused != nil {
 				return refused, err
@@ -77,6 +80,9 @@ func Passphrase(d *web.Deps) *collage.Action {
 			}
 			rotated, err := d.Sessions.Rotate(s.Token)
 			if err != nil {
+				// The passphrase changed: no session opened under the old one
+				// may survive.
+				d.Sessions.DeleteAll()
 				return nil, err
 			}
 			defer rotated.DEK.Wipe()
