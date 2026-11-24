@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 var recoveryEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
@@ -24,9 +25,17 @@ func NewRecoveryKey() (string, error) {
 	return strings.Join(groups, "-"), nil
 }
 
-// NormalizeRecoveryKey upper-cases s and strips spaces and dashes.
+// NormalizeRecoveryKey upper-cases s and strips all whitespace (tabs and line
+// breaks from a pasted key included) and dashes (any Unicode dash, as an
+// editor's autocorrect may turn "-" into one). A generated key normalizes to
+// its base32 characters.
 func NormalizeRecoveryKey(s string) string {
-	return strings.NewReplacer(" ", "", "-", "").Replace(strings.ToUpper(s))
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) || unicode.Is(unicode.Pd, r) {
+			return -1
+		}
+		return r
+	}, strings.ToUpper(s))
 }
 
 // NewAccountID returns 16 random bytes, hex-encoded.

@@ -31,7 +31,8 @@ func HadCookie(ctx context.Context) bool {
 
 // Middleware resolves the session cookie. /session only peeks (so polling does
 // not keep the session alive); /static/ is skipped entirely (fetching an asset
-// is not activity); every other path extends the session.
+// is not activity); every other path extends the session. The request's copy
+// of the session, DEK included, is wiped once the request is served.
 func (m *Manager) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/static/") {
@@ -53,6 +54,7 @@ func (m *Manager) Middleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		if ok {
 			ctx = WithSession(ctx, s)
+			defer s.DEK.Wipe()
 		} else {
 			ctx = context.WithValue(ctx, hadCookieKey, true)
 		}

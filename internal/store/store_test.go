@@ -257,7 +257,10 @@ func TestNoPlaintextOnDisk(t *testing.T) {
 	s.Close()
 	for _, suffix := range []string{"", "-wal"} {
 		data, err := os.ReadFile(path + suffix)
-		if err != nil {
+		if suffix == "" && err != nil {
+			t.Fatalf("read the database file: %v", err)
+		}
+		if err != nil { // the WAL is gone after a clean close
 			continue
 		}
 		for _, m := range []string{marker, "plat-marker-x", "ident-marker-y"} {

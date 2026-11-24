@@ -196,7 +196,7 @@ func TestKDFSlotsHonourContext(t *testing.T) {
 func TestThrottleHonoursContext(t *testing.T) {
 	d := newDeps(t)
 	for i := 0; i <= 100; i++ { // past the global ceiling: a 2s delay
-		d.Limiter.Fail(netip.AddrFrom4([4]byte{10, 0, byte(i >> 8), byte(i)}))
+		d.Limiter.Begin(netip.AddrFrom4([4]byte{10, 0, byte(i >> 8), byte(i)}))
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -235,9 +235,7 @@ func TestCookies(t *testing.T) {
 		if tlsOn {
 			r.TLS = &tls.ConnectionState{}
 		}
-		w := httptest.NewRecorder()
-		m.SetCookie(w, r, s)
-		h := w.Header().Get("Set-Cookie")
+		h := Cookie(r, s.Token).String()
 		for _, want := range []string{CookieName + "=" + s.Token, "HttpOnly", "SameSite=Strict", "Path=/"} {
 			if !strings.Contains(h, want) {
 				t.Fatalf("missing %q in %q", want, h)
@@ -246,9 +244,7 @@ func TestCookies(t *testing.T) {
 		if strings.Contains(h, "Secure") != tlsOn {
 			t.Fatalf("Secure mismatch (tls=%v): %q", tlsOn, h)
 		}
-		w = httptest.NewRecorder()
-		ClearCookie(w, r)
-		h = w.Header().Get("Set-Cookie")
+		h = ExpiredCookie(r).String()
 		if !strings.Contains(h, "Max-Age=0") && !strings.Contains(h, "Max-Age=-1") {
 			t.Fatalf("clear cookie not expiring: %q", h)
 		}
@@ -272,5 +268,33 @@ func TestMiddlewareSkipsStatic(t *testing.T) {
 	c.advance(6 * time.Minute)
 	if _, ok := m.Peek(s.Token); ok {
 		t.Fatal("/static/ request must not extend the session")
+	}
+}
+
+// The request's copy of the session's key is wiped once the request is
+// served; the stored session keeps its own.
+func TestMiddlewareWipesTheRequestsDEK(t *testing.T) {
+	for _, path := range []string{"/", "/session"} {
+		m, _ := setup()
+		s, _ := m.Create(testDEK(7))
+		var seen *Session
+		h := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seen, _ = FromContext(r.Context())
+			if seen.DEK != testDEK(7) {
+				t.Errorf("%s: handler sees DEK %v", path, seen.DEK)
+			}
+		}))
+		r := httptest.NewRequest("GET", path, nil)
+		r.AddCookie(&http.Cookie{Name: CookieName, Value: s.Token})
+		h.ServeHTTP(httptest.NewRecorder(), r)
+		if seen == nil {
+			t.Fatalf("%s: no session in the request", path)
+		}
+		if seen.DEK != (vault.DEK{}) {
+			t.Fatalf("%s: request's DEK copy not wiped", path)
+		}
+		if stored, ok := m.Peek(s.Token); !ok || stored.DEK != testDEK(7) {
+			t.Fatalf("%s: stored session lost its DEK", path)
+		}
 	}
 }

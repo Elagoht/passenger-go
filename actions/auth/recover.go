@@ -27,7 +27,7 @@ func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
 		pass := r.PostFormValue("passphrase")
-		if msg := checkNewPassphrase(pass, r.PostFormValue("confirm")); msg != "" {
+		if msg := web.CheckNewPassphrase(pass, r.PostFormValue("confirm")); msg != "" {
 			return refuse(rc, http.StatusUnprocessableEntity, msg), nil
 		}
 		if msg, ok, err := d.Throttle(r); err != nil {

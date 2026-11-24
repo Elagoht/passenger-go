@@ -65,6 +65,57 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersLeaveStaticCacheable(t *testing.T) {
+	h := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		w.Write([]byte("body{}"))
+	}))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/static/app.css", nil))
+	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Errorf("Cache-Control = %q, want the static handler's", got)
+	}
+	for name, want := range map[string]string{
+		"Content-Security-Policy": ContentSecurityPolicy,
+		"Referrer-Policy":         "no-referrer",
+		"X-Content-Type-Options":  "nosniff",
+	} {
+		if got := rec.Header().Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+}
+
+// A handler that panics before writing still leaves the headers for whatever
+// recovers the panic outside our chain and writes the error page.
+func TestSecurityHeadersSurviveAPanic(t *testing.T) {
+	h := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic("boom")
+	}))
+	recoverer := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recover() != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
+	rec := httptest.NewRecorder()
+	recoverer.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	for name, want := range map[string]string{
+		"Content-Security-Policy": ContentSecurityPolicy,
+		"Cache-Control":           "no-store",
+		"X-Content-Type-Options":  "nosniff",
+	} {
+		if got := rec.Header().Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+}
+
 func newDeps(t *testing.T) *Deps {
 	t.Helper()
 	st, err := store.Open(filepath.Join(t.TempDir(), "p.db"))

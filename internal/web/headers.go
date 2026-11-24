@@ -1,27 +1,35 @@
 package web
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // ContentSecurityPolicy is sent on every response: no inline scripts or
 // styles, nothing from other origins.
 const ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; " +
 	"img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 
-// SecurityHeaders sets the CSP, Referrer-Policy, Cache-Control: no-store and
-// X-Content-Type-Options on every response. They are applied when the
-// response's header is written, so they override what an inner handler (a
-// guarded page's "private, no-cache", a static file's "immutable") set.
+// SecurityHeaders sets the CSP, Referrer-Policy and X-Content-Type-Options on
+// every response, and Cache-Control: no-store on every response but the
+// static files under /static/ (they hold no secrets and may be cached). They
+// are applied when the response's header is written, so they override what an
+// inner handler (a guarded page's "private, no-cache") set.
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hw := &headerWriter{ResponseWriter: w}
+		hw := &headerWriter{ResponseWriter: w, static: strings.HasPrefix(r.URL.Path, "/static/")}
+		// Deferred, so that a handler that wrote nothing (net/http sends the
+		// header map now) or panicked (whatever recovers it writes the error
+		// page on this header map) still gets them.
+		defer hw.apply()
 		next.ServeHTTP(hw, r)
-		hw.apply() // a handler that wrote nothing: net/http sends the header map now
 	})
 }
 
 type headerWriter struct {
 	http.ResponseWriter
-	done bool
+	static bool
+	done   bool
 }
 
 func (w *headerWriter) apply() {
@@ -32,7 +40,9 @@ func (w *headerWriter) apply() {
 	h := w.Header()
 	h.Set("Content-Security-Policy", ContentSecurityPolicy)
 	h.Set("Referrer-Policy", "no-referrer")
-	h.Set("Cache-Control", "no-store")
+	if !w.static {
+		h.Set("Cache-Control", "no-store")
+	}
 	h.Set("X-Content-Type-Options", "nosniff")
 }
 

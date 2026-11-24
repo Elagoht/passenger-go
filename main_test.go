@@ -122,3 +122,60 @@ func TestStaticDoesNotTouchSession(t *testing.T) {
 		t.Fatal("a static request extended the session")
 	}
 }
+
+func TestListenPort(t *testing.T) {
+	tests := []struct {
+		name string
+		env  int    // collage's Env.Port: -port, PORT, or 6060
+		port string // the PORT variable
+		want int
+	}{
+		{"PORT unset uses 8080", 6060, "", 8080},
+		{"PORT set is kept", 6060, "6060", 6060},
+		{"PORT set to another port", 9000, "9000", 9000},
+		{"-port flag without PORT is kept", 9000, "", 9000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getenv := func(k string) string {
+				if k == "PORT" {
+					return tt.port
+				}
+				return ""
+			}
+			if got := listenPort(collage.Env{Port: tt.env}, getenv); got != tt.want {
+				t.Fatalf("listenPort = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+// Static files may be cached (they carry no secrets) but keep the other
+// security headers.
+func TestStaticHeaders(t *testing.T) {
+	c, _ := newTestApp(t)
+	res := c.Get("/static/app.css").WantStatus(http.StatusOK)
+	if cc := res.Header.Get("Cache-Control"); strings.Contains(cc, "no-store") {
+		t.Errorf("Cache-Control = %q, want static files cacheable", cc)
+	}
+	for name, want := range map[string]string{
+		"Content-Security-Policy": web.ContentSecurityPolicy,
+		"Referrer-Policy":         "no-referrer",
+		"X-Content-Type-Options":  "nosniff",
+	} {
+		if got := res.Header.Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestShutdownEndsSessions(t *testing.T) {
+	_, env := newTestApp(t)
+	s := createVaultAndSession(t, env)
+	if err := env.App.Shutdown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := env.Deps.Sessions.Peek(s.Token); ok {
+		t.Fatal("a session outlived the shutdown")
+	}
+}

@@ -8,14 +8,7 @@ import (
 	"github.com/Elagoht/collage/pkg/collage"
 
 	fragments "passenger-go/fragments/pages/auth"
-	"passenger-go/internal/web"
 )
-
-// checkNewPassphrase returns why a new master passphrase and its repeat are
-// refused, or "" when they are accepted.
-func checkNewPassphrase(pass, confirm string) string {
-	return web.CheckNewPassphrase(pass, confirm)
-}
 
 // refuse answers with the form's own page carrying msg. The page renders no
 // submitted secret back.

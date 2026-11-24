@@ -57,35 +57,10 @@ func (l *Limiter) sweep(now time.Time) {
 	}
 }
 
-// Allow reports whether ip may attempt now; if not, wait is the remaining backoff.
-func (l *Limiter) Allow(ip netip.Addr) (wait time.Duration, ok bool) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	now := l.now()
-	l.sweep(now)
-	e := l.ips[ip]
-	if e == nil || now.Sub(e.lastFail) >= entryTTL {
-		return 0, true
-	}
-	if wait = e.blockedUntil.Sub(now); wait > 0 {
-		return wait, false
-	}
-	return 0, true
-}
-
-// Fail records a failed attempt. From the 5th consecutive failure n on, ip is
-// blocked until now + 1s*2^(n-5), capped at 5m.
-func (l *Limiter) Fail(ip netip.Addr) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	now := l.now()
-	l.sweep(now)
-	l.failLocked(ip, now)
-}
-
 // Begin starts an attempt from ip. When ip is backing off it returns the
 // remaining wait and false. Otherwise it records the attempt as a failure up
-// front, exactly as Fail would, and returns true; the caller calls Succeed if
+// front and returns true: from the 5th consecutive failure n on, ip is then
+// blocked until now + 1s*2^(n-5), capped at 5m; the caller calls Succeed if
 // the guess turns out right. Checking and recording under one lock means
 // parallel attempts cannot all slip past the backoff before any failure is
 // counted.

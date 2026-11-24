@@ -85,7 +85,7 @@ func wire(env collage.Env, cfg config.Config, deps *web.Deps) (*collage.App, err
 		DevMode: env.Dev,
 		Server: collage.ServerConfig{
 			Host:           env.Host,
-			Port:           env.Port,
+			Port:           listenPort(env, os.Getenv),
 			TrustedProxies: cfg.TrustedProxies,
 		},
 		Template: collage.TemplateConfig{
@@ -115,8 +115,20 @@ func wire(env collage.Env, cfg config.Config, deps *web.Deps) (*collage.App, err
 	return app, app.Mount("/static/", env.Static(files, "static"))
 }
 
-// lifecycle runs the session sweeper while the app is up and closes the store
-// when it shuts down.
+// defaultPort is where the server listens when neither PORT nor -port says.
+const defaultPort = 8080
+
+// listenPort is env.Port, except that collage's own default (6060, used when
+// neither PORT nor -port is given) becomes defaultPort.
+func listenPort(env collage.Env, getenv func(string) string) int {
+	if getenv("PORT") == "" && env.Port == 6060 {
+		return defaultPort
+	}
+	return env.Port
+}
+
+// lifecycle runs the session sweeper while the app is up and, when it shuts
+// down, ends every session (wiping their keys) and closes the store.
 type lifecycle struct {
 	deps   *web.Deps
 	cancel context.CancelFunc
@@ -136,5 +148,6 @@ func (l *lifecycle) Shutdown(_ context.Context) error {
 	if l.cancel != nil {
 		l.cancel()
 	}
+	l.deps.Sessions.DeleteAll()
 	return l.deps.Store.Close()
 }

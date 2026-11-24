@@ -1,7 +1,6 @@
 package ratelimit
 
 import (
-	"fmt"
 	"net/netip"
 	"sync"
 	"testing"
@@ -21,112 +20,113 @@ func newTest() (*Limiter, *fakeClock) {
 var ipA = netip.MustParseAddr("203.0.113.1")
 var ipB = netip.MustParseAddr("203.0.113.2")
 
-func failN(l *Limiter, ip netip.Addr, n int) {
+// beginN starts n attempts from ip without time passing, failing the test if
+// one is refused.
+func beginN(t *testing.T, l *Limiter, ip netip.Addr, n int) {
+	t.Helper()
 	for i := 0; i < n; i++ {
-		l.Fail(ip)
+		if wait, ok := l.Begin(ip); !ok {
+			t.Fatalf("attempt %d refused (wait %v)", i+1, wait)
+		}
 	}
 }
 
-func TestFourFailuresStillAllowed(t *testing.T) {
-	l, _ := newTest()
-	failN(l, ipA, 4)
-	if wait, ok := l.Allow(ipA); !ok || wait != 0 {
-		t.Fatalf("Allow = %v, %v; want 0, true", wait, ok)
+func wantRefused(t *testing.T, l *Limiter, ip netip.Addr, want time.Duration) {
+	t.Helper()
+	if wait, ok := l.Begin(ip); ok || wait != want {
+		t.Fatalf("Begin = %v, %v; want %v, false", wait, ok, want)
 	}
+}
+
+func TestFifthAttemptStillAllowed(t *testing.T) {
+	l, _ := newTest()
+	beginN(t, l, ipA, 5)
 }
 
 func TestFifthFailureBlocksOneSecond(t *testing.T) {
 	l, c := newTest()
-	failN(l, ipA, 5)
-	if wait, ok := l.Allow(ipA); ok || wait != time.Second {
-		t.Fatalf("Allow = %v, %v; want 1s, false", wait, ok)
-	}
+	beginN(t, l, ipA, 5)
+	wantRefused(t, l, ipA, time.Second)
 	c.advance(400 * time.Millisecond)
-	if wait, ok := l.Allow(ipA); ok || wait != 600*time.Millisecond {
-		t.Fatalf("Allow = %v, %v; want 600ms, false", wait, ok)
-	}
+	wantRefused(t, l, ipA, 600*time.Millisecond)
 	c.advance(600 * time.Millisecond)
-	if wait, ok := l.Allow(ipA); !ok || wait != 0 {
-		t.Fatalf("Allow after 1s = %v, %v; want 0, true", wait, ok)
-	}
+	beginN(t, l, ipA, 1)
 }
 
 func TestSixthFailureBlocksTwoSecondsFromItsOwnTime(t *testing.T) {
 	l, c := newTest()
-	failN(l, ipA, 5)
+	beginN(t, l, ipA, 5)
 	c.advance(time.Second)
-	l.Fail(ipA)
-	if wait, ok := l.Allow(ipA); ok || wait != 2*time.Second {
-		t.Fatalf("Allow = %v, %v; want 2s, false", wait, ok)
-	}
+	beginN(t, l, ipA, 1)
+	wantRefused(t, l, ipA, 2*time.Second)
 }
 
-func TestFailWhileBlockedStillCounts(t *testing.T) {
-	l, _ := newTest()
-	failN(l, ipA, 6) // no time passes between failures
-	if wait, ok := l.Allow(ipA); ok || wait != 2*time.Second {
-		t.Fatalf("Allow = %v, %v; want 2s, false", wait, ok)
+func TestRefusedAttemptDoesNotCount(t *testing.T) {
+	l, c := newTest()
+	beginN(t, l, ipA, 5)
+	for i := 0; i < 3; i++ {
+		wantRefused(t, l, ipA, time.Second)
 	}
+	c.advance(time.Second)
+	beginN(t, l, ipA, 1)                  // the 6th failure, not the 9th
+	wantRefused(t, l, ipA, 2*time.Second) // 1s*2^(6-5)
 }
 
 func TestBackoffCappedAtFiveMinutes(t *testing.T) {
-	l, _ := newTest()
-	failN(l, ipA, 200)
-	if wait, ok := l.Allow(ipA); ok || wait != 5*time.Minute {
-		t.Fatalf("Allow = %v, %v; want 5m, false", wait, ok)
+	l, c := newTest()
+	for fails := 0; fails < 40; {
+		if wait, ok := l.Begin(ipA); ok {
+			fails++
+		} else {
+			c.advance(wait)
+		}
 	}
+	wantRefused(t, l, ipA, 5*time.Minute)
 }
 
 func TestOtherIPUnaffected(t *testing.T) {
 	l, _ := newTest()
-	failN(l, ipA, 10)
-	if _, ok := l.Allow(ipB); !ok {
-		t.Fatal("other IP must stay allowed")
-	}
+	beginN(t, l, ipA, 5)
+	wantRefused(t, l, ipA, time.Second)
+	beginN(t, l, ipB, 1)
 }
 
 func TestSucceedResets(t *testing.T) {
 	l, _ := newTest()
-	failN(l, ipA, 7)
+	beginN(t, l, ipA, 5)
 	l.Succeed(ipA)
-	if _, ok := l.Allow(ipA); !ok {
-		t.Fatal("Succeed must clear the block")
-	}
-	failN(l, ipA, 4)
-	if _, ok := l.Allow(ipA); !ok {
-		t.Fatal("counter must restart after Succeed")
-	}
+	beginN(t, l, ipA, 5) // the counter restarted: five more before a block
+	wantRefused(t, l, ipA, time.Second)
 }
 
 func TestStaleEntriesPruned(t *testing.T) {
 	l, c := newTest()
-	failN(l, ipA, 8)
+	beginN(t, l, ipA, 5)
 	c.advance(25 * time.Hour)
-	if _, ok := l.Allow(ipB); !ok {
-		t.Fatal("unexpected block")
-	}
+	beginN(t, l, ipB, 1) // sweeps
 	l.mu.Lock()
-	n := len(l.ips)
+	_, kept := l.ips[ipA]
 	l.mu.Unlock()
-	if n != 0 {
-		t.Fatalf("stale entries = %d; want 0", n)
+	if kept {
+		t.Fatal("stale entry kept")
 	}
-	failN(l, ipA, 4)
-	if _, ok := l.Allow(ipA); !ok {
-		t.Fatal("old failures must not count after 24h")
-	}
+	beginN(t, l, ipA, 5) // old failures no longer count
+}
+
+// distinctIP is the i-th of many different IPv4 addresses.
+func distinctIP(i int) netip.Addr {
+	return netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)})
 }
 
 func TestGlobalDelay(t *testing.T) {
 	l, c := newTest()
-	ip := func(i int) netip.Addr { return netip.MustParseAddr(fmt.Sprintf("10.0.%d.%d", i/250, i%250+1)) }
 	for i := 0; i < 100; i++ {
-		l.Fail(ip(i))
+		l.Begin(distinctIP(i))
 	}
 	if d := l.GlobalDelay(); d != 0 {
 		t.Fatalf("GlobalDelay at 100 = %v; want 0", d)
 	}
-	l.Fail(ip(100))
+	l.Begin(distinctIP(100))
 	if d := l.GlobalDelay(); d != 2*time.Second {
 		t.Fatalf("GlobalDelay at 101 = %v; want 2s", d)
 	}
@@ -138,7 +138,9 @@ func TestGlobalDelay(t *testing.T) {
 
 func TestGlobalMemoryBounded(t *testing.T) {
 	l, _ := newTest()
-	failN(l, ipA, 100000)
+	for i := 0; i < 100000; i++ {
+		l.Begin(distinctIP(i))
+	}
 	l.mu.Lock()
 	n := len(l.global)
 	l.mu.Unlock()
@@ -158,8 +160,7 @@ func TestConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 200; j++ {
-				l.Fail(ipA)
-				l.Allow(ipA)
+				l.Begin(ipA)
 				l.GlobalDelay()
 				l.Succeed(ipB)
 			}
@@ -183,7 +184,7 @@ func TestBeginCountsAsFailure(t *testing.T) {
 		t.Fatal("Begin after the backoff refused")
 	}
 	l.Succeed(ipA)
-	if _, ok := l.Allow(ipA); !ok {
+	if _, ok := l.Begin(ipA); !ok {
 		t.Fatal("Succeed did not reset")
 	}
 	if _, ok := l.Begin(ipB); !ok {

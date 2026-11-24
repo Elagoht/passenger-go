@@ -61,6 +61,7 @@ func confirmHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if err != nil {
 			return nil, err
 		}
+		s.DEK.Wipe() // our copy; the stored session keeps its own
 		res := collage.SeeOther("/")
 		res.Header = web.CookieHeader(session.Cookie(r, s.Token), clearPending)
 		return res, nil

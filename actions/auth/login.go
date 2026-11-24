@@ -47,6 +47,7 @@ func loginHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if err != nil {
 			return nil, err
 		}
+		s.DEK.Wipe() // our copy; the stored session keeps its own
 		res := collage.SeeOther(web.SafeNext(r.PostFormValue("next")))
 		res.Header = web.CookieHeader(session.Cookie(r, s.Token))
 		return res, nil

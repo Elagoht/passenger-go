@@ -120,6 +120,20 @@ func TestRecoveryKey(t *testing.T) {
 	}
 }
 
+func TestNormalizeRecoveryKeyStripsAllWhitespaceAndDashes(t *testing.T) {
+	for in, want := range map[string]string{
+		"abcd\tefgh\nijkl":         "ABCDEFGHIJKL",
+		"  abcd-efgh\r\n":          "ABCDEFGH",
+		"abcd\u00a0efgh\u2003ijkl": "ABCDEFGHIJKL", // no-break and em space
+		"abcd\u2013efgh\u2014ijkl": "ABCDEFGHIJKL", // en and em dash
+		"ABCD-EFGH-IJKL":           "ABCDEFGHIJKL",
+	} {
+		if got := NormalizeRecoveryKey(in); got != want {
+			t.Errorf("NormalizeRecoveryKey(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestAccountID(t *testing.T) {
 	a, _ := NewAccountID()
 	b, _ := NewAccountID()

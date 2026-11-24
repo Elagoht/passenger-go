@@ -198,13 +198,3 @@ func ExpiredCookie(r *http.Request) *http.Cookie {
 	c.MaxAge = -1
 	return c
 }
-
-// SetCookie issues the session cookie for s.
-func (m *Manager) SetCookie(w http.ResponseWriter, r *http.Request, s *Session) {
-	http.SetCookie(w, Cookie(r, s.Token))
-}
-
-// ClearCookie expires the session cookie.
-func ClearCookie(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, ExpiredCookie(r))
-}
