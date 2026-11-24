@@ -587,6 +587,7 @@ small {
   color: var(--ink);
   background: var(--paper-fill);
   box-shadow: 0 0 0 1px var(--paper-edge), var(--lift);
+  overflow: hidden;
   transition: transform 140ms ease, box-shadow 140ms ease;
   outline: none;
 }
@@ -595,7 +596,7 @@ small {
 .carrier-1 { --carrier: #9c3b34; }
 .carrier-2 { --carrier: #2f6f5a; }
 .carrier-3 { --carrier: #7a4a8c; }
-.carrier-4 { --carrier: #a0641e; }
+.carrier-4 { --carrier: #8a5414; }
 .carrier-5 { --carrier: #1f6b84; }
 .carrier-6 { --carrier: #5b6b2a; }
 .carrier-7 { --carrier: #8a3f63; }
