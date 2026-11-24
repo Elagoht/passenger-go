@@ -1,0 +1,24 @@
+<form method="post" action="{{pageURL "setup"}}">
+  {{csrfToken}}
+  <strong>Create your vault</strong>
+  <p>Enter the setup code from the server log and choose a master passphrase of at least 12 characters.</p>
+
+  <label>
+    <span>Setup code</span>
+    <input required name="code" inputmode="numeric" autocomplete="off" maxlength="8">
+  </label>
+
+  <label>
+    <span>Master passphrase</span>
+    <input required type="password" name="passphrase" minlength="12" autocomplete="new-password">
+  </label>
+
+  <label>
+    <span>Repeat passphrase</span>
+    <input required type="password" name="confirm" minlength="12" autocomplete="new-password">
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Continue</button>
+</form>

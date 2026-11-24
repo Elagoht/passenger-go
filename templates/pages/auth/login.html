@@ -1,0 +1,18 @@
+<form method="post" action="{{pageURL "login"}}">
+  {{csrfToken}}
+  <input type="hidden" name="next" value="{{.Next}}">
+  <strong>Unlock your vault</strong>
+
+  {{if .Expired}}<blockquote class="info">Your session expired. Sign in again.</blockquote>{{end}}
+
+  <label>
+    <span>Passphrase</span>
+    <input required type="password" name="passphrase" autocomplete="current-password" autofocus>
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Unlock</button>
+</form>
+
+<a href="{{pageURL "recover"}}">Forgot passphrase?</a>

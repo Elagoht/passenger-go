@@ -1,0 +1,34 @@
+{{if .NewKey}}
+<section>
+  <strong>Passphrase changed</strong>
+  {{template "pages/auth/recovery_shown.html" .NewKey}}
+  <a href="{{pageURL "login"}}">Continue to login</a>
+</section>
+{{else}}
+<form method="post" action="{{pageURL "recover"}}">
+  {{csrfToken}}
+  <strong>Recover your vault</strong>
+  <p>Enter your recovery key and choose a new master passphrase. You will get a new recovery key; the old one stops working.</p>
+
+  <label>
+    <span>Recovery key</span>
+    <input required name="recovery" autocomplete="off" spellcheck="false">
+  </label>
+
+  <label>
+    <span>New master passphrase</span>
+    <input required type="password" name="passphrase" minlength="12" autocomplete="new-password">
+  </label>
+
+  <label>
+    <span>Repeat passphrase</span>
+    <input required type="password" name="confirm" minlength="12" autocomplete="new-password">
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Recover</button>
+</form>
+
+<a href="{{pageURL "login"}}">Back to login</a>
+{{end}}

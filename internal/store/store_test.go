@@ -267,3 +267,34 @@ func TestNoPlaintextOnDisk(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateWraps(t *testing.T) {
+	s, _ := newStore(t)
+	pass := vault.Wrapped{Salt: []byte("a"), Box: []byte("b")}
+	recov := vault.Wrapped{Salt: []byte("c"), Box: []byte("d")}
+	if err := s.UpdateWraps(ctx, pass, recov); !errors.Is(err, ErrNotInitialized) {
+		t.Fatalf("uninitialized err = %v", err)
+	}
+	row := VaultRow{
+		KDF:      vault.KDFParams{Alg: "argon2id", T: 3, M: 65536, P: 4},
+		Pass:     vault.Wrapped{Salt: []byte("sp"), Box: []byte("bp")},
+		Recovery: vault.Wrapped{Salt: []byte("sr"), Box: []byte("br")},
+	}
+	if err := s.CreateVault(ctx, row); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateWraps(ctx, pass, recov); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Vault(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Pass.Salt) != "a" || string(got.Pass.Box) != "b" ||
+		string(got.Recovery.Salt) != "c" || string(got.Recovery.Box) != "d" {
+		t.Fatalf("wraps not updated: %+v", got)
+	}
+	if got.KDF != row.KDF {
+		t.Fatalf("kdf changed: %+v", got.KDF)
+	}
+}

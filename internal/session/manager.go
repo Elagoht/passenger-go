@@ -171,26 +171,32 @@ func (m *Manager) Start(ctx context.Context) {
 	}()
 }
 
-// SetCookie issues a session cookie (browser-session lifetime; validity is server-side).
-func (m *Manager) SetCookie(w http.ResponseWriter, r *http.Request, s *Session) {
-	http.SetCookie(w, &http.Cookie{
+// Cookie is the session cookie for token (browser-session lifetime; validity
+// is server-side): HttpOnly, SameSite=Strict, Path=/, Secure over TLS.
+func Cookie(r *http.Request, token string) *http.Cookie {
+	return &http.Cookie{
 		Name:     CookieName,
-		Value:    s.Token,
+		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   collage.IsHTTPS(r),
-	})
+	}
 }
 
+// ExpiredCookie is the session cookie that tells the browser to drop it.
+func ExpiredCookie(r *http.Request) *http.Cookie {
+	c := Cookie(r, "")
+	c.MaxAge = -1
+	return c
+}
+
+// SetCookie issues the session cookie for s.
+func (m *Manager) SetCookie(w http.ResponseWriter, r *http.Request, s *Session) {
+	http.SetCookie(w, Cookie(r, s.Token))
+}
+
+// ClearCookie expires the session cookie.
 func ClearCookie(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     CookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-		Secure:   collage.IsHTTPS(r),
-	})
+	http.SetCookie(w, ExpiredCookie(r))
 }

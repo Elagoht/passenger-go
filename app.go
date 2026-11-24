@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"time"
 
@@ -47,12 +48,28 @@ func buildApp(env collage.Env) (*collage.App, *web.Deps, error) {
 		return nil, nil, err
 	}
 	st.SetClock(now)
+	code, err := web.NewSetupCode()
+	if err != nil {
+		st.Close()
+		return nil, nil, err
+	}
 	deps := &web.Deps{
-		Store:    st,
-		Sessions: session.NewManager(cfg.SessionIdle, cfg.SessionMax, now),
-		Limiter:  ratelimit.New(now),
-		KDF:      kdf,
-		Now:      now,
+		Store:     st,
+		Sessions:  session.NewManager(cfg.SessionIdle, cfg.SessionMax, now),
+		Limiter:   ratelimit.New(now),
+		KDF:       kdf,
+		Now:       now,
+		SetupCode: code,
+		Pending:   web.NewPendingSetup(now),
+	}
+	initialized, err := st.Initialized(context.Background())
+	if err != nil {
+		st.Close()
+		return nil, nil, err
+	}
+	if !initialized {
+		// Only someone who can read this log can claim a fresh install.
+		log.Printf("setup code: %s", code)
 	}
 
 	app, err := wire(env, cfg, deps)

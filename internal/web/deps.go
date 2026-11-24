@@ -19,4 +19,9 @@ type Deps struct {
 	Limiter  *ratelimit.Limiter
 	KDF      vault.KDFParams
 	Now      func() time.Time
+
+	// SetupCode is asked for by /setup; Pending holds a setup awaiting its
+	// recovery-key confirmation.
+	SetupCode *SetupCode
+	Pending   *PendingSetup
 }

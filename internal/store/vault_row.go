@@ -96,3 +96,20 @@ func (s *Store) updateWrap(ctx context.Context, query string, w vault.Wrapped) e
 	}
 	return nil
 }
+
+// UpdateWraps replaces both wrapped DEKs at once, so a recovery never leaves
+// the vault with a new passphrase wrap and the old recovery wrap.
+func (s *Store) UpdateWraps(ctx context.Context, pass, rec vault.Wrapped) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE vault SET salt_pass = ?, wrapped_dek_pass = ?, salt_rec = ?, wrapped_dek_rec = ? WHERE id = 1`,
+		pass.Salt, pass.Box, rec.Salt, rec.Box)
+	if err != nil {
+		return fmt.Errorf("store: update wraps: %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("store: update wraps: %w", err)
+	} else if n == 0 {
+		return ErrNotInitialized
+	}
+	return nil
+}

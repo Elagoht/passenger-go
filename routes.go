@@ -3,22 +3,20 @@ package main
 import (
 	"github.com/Elagoht/collage/pkg/collage"
 
-	"passenger-go/fragments/layouts"
+	authactions "passenger-go/actions/auth"
 	"passenger-go/internal/web"
+	"passenger-go/pages"
+	authpages "passenger-go/pages/auth"
 )
 
 // register adds every page, document and action to app.
 func register(app *collage.App, deps *web.Deps) error {
-	return app.Register(home(deps))
-}
-
-// home is a temporary page proving the App layout builds and guards; replaced
-// by the account list later.
-func home(deps *web.Deps) *collage.Page {
-	content := collage.NewInlineFragment("home", `<h1>Passenger</h1>`).Build()
-	return collage.NewPage("home").
-		WithLayouts(layouts.App(deps)).
-		WithContent(content).
-		WithPath("en", "/").
-		Build()
+	return app.Register(
+		pages.Home(deps),
+		authpages.Setup(deps),
+		authpages.SetupConfirm(deps),
+		authpages.Login(deps),
+		authpages.Recover(deps),
+		authactions.Logout(deps),
+	)
 }

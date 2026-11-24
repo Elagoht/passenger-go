@@ -1,0 +1,16 @@
+<form method="post" action="{{pageURL "setup-confirm"}}">
+  {{csrfToken}}
+  <strong>Save your recovery key</strong>
+  <p>This key is the only way back in if you forget your master passphrase. It is shown once: write it down and keep it safe.</p>
+
+  <blockquote class="info"><code>{{.Recovery}}</code></blockquote>
+
+  <label>
+    <span>Type the recovery key to confirm</span>
+    <input required name="recovery" autocomplete="off" spellcheck="false">
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit">Create vault</button>
+</form>
