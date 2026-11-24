@@ -23,10 +23,10 @@ func seeOther(location string) *collage.GuardDecision {
 }
 
 // RequireSession lets through requests carrying a live session. Without a
-// vault it sends the reader to /setup; without a session to /login, with
-// expired=1 when a stale cookie was presented and, for a GET or HEAD, the
-// requested path in next. Another method's path is not one to return to:
-// after login the browser would GET it.
+// vault it sends the reader to /setup; without a session to /login, with the
+// requested path in next for a GET or HEAD of anything but the home page.
+// Another method's path is not one to return to: after login the browser
+// would GET it.
 func (d *Deps) RequireSession(ctx context.Context, r *http.Request) (*collage.GuardDecision, error) {
 	ok, err := d.Store.Initialized(ctx)
 	if err != nil {
@@ -38,16 +38,9 @@ func (d *Deps) RequireSession(ctx context.Context, r *http.Request) (*collage.Gu
 	if _, ok := session.FromContext(ctx); ok {
 		return nil, nil
 	}
-	q := url.Values{}
-	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		q.Set("next", r.URL.RequestURI())
-	}
-	if session.HadCookie(ctx) {
-		q.Set("expired", "1")
-	}
 	loc := pathLogin
-	if len(q) > 0 {
-		loc += "?" + q.Encode()
+	if next := r.URL.RequestURI(); (r.Method == http.MethodGet || r.Method == http.MethodHead) && next != "/" {
+		loc += "?" + url.Values{"next": {next}}.Encode()
 	}
 	return seeOther(loc), nil
 }

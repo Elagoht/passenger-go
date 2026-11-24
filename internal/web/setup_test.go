@@ -156,9 +156,9 @@ func TestRequireSessionNextOnlyForReads(t *testing.T) {
 	}))
 	for _, tc := range []struct{ method, cookie, want string }{
 		{"POST", "", "/login"},
-		{"POST", "stale", "/login?expired=1"},
+		{"POST", "stale", "/login"},
 		{"HEAD", "", "/login?next=%2Fx"},
-		{"GET", "stale", "/login?expired=1&next=%2Fx"},
+		{"GET", "stale", "/login?next=%2Fx"},
 	} {
 		r := httptest.NewRequest(tc.method, "/x", nil)
 		if tc.cookie != "" {

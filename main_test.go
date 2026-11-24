@@ -67,9 +67,9 @@ func TestAppLayout(t *testing.T) {
 	}
 	s := createVaultAndSession(t, env)
 
-	// No cookie: to login, carrying the path.
-	if loc := c.Get("/").WantStatus(http.StatusSeeOther).Location(); loc != "/login?next=%2F" {
-		t.Fatalf("Location = %q, want /login?next=%%2F", loc)
+	// No cookie: to login. The home page needs no next.
+	if loc := c.Get("/").WantStatus(http.StatusSeeOther).Location(); loc != "/login" {
+		t.Fatalf("Location = %q, want /login", loc)
 	}
 
 	env.Clock.Advance(5 * time.Minute) // the page view slides the session

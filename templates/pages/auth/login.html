@@ -3,8 +3,6 @@
   <input type="hidden" name="next" value="{{.Next}}">
   <h1>Unlock your vault</h1>
 
-  {{if .Expired}}<p class="alert alert-info">Your session expired. Sign in again to pick up where you left off.</p>{{end}}
-
   <label class="field">
     <span>Master passphrase</span>
     <input required type="password" name="passphrase" autocomplete="current-password" autofocus>

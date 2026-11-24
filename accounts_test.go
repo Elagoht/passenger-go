@@ -229,8 +229,11 @@ func TestAccountPagesNeedASession(t *testing.T) {
 	_, env := loggedIn(t)
 	guest := collagetest.New(t, env.App.Handler())
 	for _, target := range []string{"/", "/accounts/new", "/accounts/x", "/accounts/x/delete", "/generate"} {
-		wantLocation(t, guest.Get(target).WantStatus(http.StatusSeeOther),
-			"/login?next="+url.QueryEscape(target))
+		want := "/login?next=" + url.QueryEscape(target)
+		if target == "/" {
+			want = "/login"
+		}
+		wantLocation(t, guest.Get(target).WantStatus(http.StatusSeeOther), want)
 	}
 }
 

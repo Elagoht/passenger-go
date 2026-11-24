@@ -61,19 +61,16 @@
     return Promise.resolve();
   }
 
+  // The label never changes, so the ticket does not shift; the toast says
+  // what was copied and the button flashes green.
   function markDone(button) {
     if (!button) {
       return;
     }
-    if (button.dataset.label === undefined) {
-      button.dataset.label = button.textContent;
-    }
-    button.textContent = "Copied";
     button.classList.add("is-done");
     window.setTimeout(function () {
-      button.textContent = button.dataset.label;
       button.classList.remove("is-done");
-    }, 1500);
+    }, 1200);
   }
 
   function copyWithFeedback(button, what, getText) {
@@ -93,8 +90,8 @@
   }
 
   function sessionExpired() {
-    var next = window.location.pathname + window.location.search;
-    window.location.assign("/login?expired=1&next=" + encodeURIComponent(next));
+    var here = window.location.pathname + window.location.search;
+    window.location.assign(here === "/" ? "/login" : "/login?next=" + encodeURIComponent(here));
   }
 
   function fetchPassphrase(url) {
@@ -357,32 +354,65 @@
     event.preventDefault();
   });
 
-  filter.addEventListener("keydown", function (event) {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === "Enter" && selected) {
-      event.preventDefault();
-      var button = selected.querySelector(event.shiftKey ? "[data-copy-text]" : "[data-copy-passphrase]");
-      if (button) {
-        button.click();
-      }
-    } else if (event.key === "Escape") {
-      filter.value = "";
-      applyFilter();
+  function copyFromSelected(username) {
+    if (!selected) {
+      return;
     }
-  });
+    var button = selected.querySelector(username ? "[data-copy-text]" : "[data-copy-passphrase]");
+    if (button) {
+      button.click();
+    }
+  }
 
-  // "/" jumps to the search from anywhere on the page.
+  // Keys work anywhere on the page, not only in the search box: clicking a
+  // ticket or a copy button must not break arrow navigation.
   document.addEventListener("keydown", function (event) {
-    var tag = (event.target.tagName || "").toLowerCase();
-    var typing = tag === "input" || tag === "textarea" || event.target.isContentEditable;
-    if (event.key === "/" && !typing && !event.metaKey && !event.ctrlKey) {
+    if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
+      return;
+    }
+    var target = event.target;
+    var tag = (target.tagName || "").toLowerCase();
+    var inFilter = target === filter;
+    var typingElsewhere = !inFilter && (tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable);
+    if (typingElsewhere) {
+      return;
+    }
+
+    if (event.key === "/" && !inFilter) {
       event.preventDefault();
       filter.focus();
       filter.select();
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      move(event.key === "ArrowDown" ? 1 : -1);
+    } else if (event.key === "Enter" && selected && (inFilter || tag === "body" || target.matches("[data-card]"))) {
+      // On a focused button or link, Enter keeps its own meaning.
+      event.preventDefault();
+      copyFromSelected(event.shiftKey);
+    } else if (event.key === "Escape") {
+      if (inFilter && filter.value) {
+        filter.value = "";
+        applyFilter();
+      } else {
+        select(null);
+      }
     }
   });
+
+  // Using a ticket with the mouse makes it the selected one, so the arrows
+  // continue from there.
+  if (list) {
+    list.addEventListener("click", function (event) {
+      var ticket = event.target.closest("[data-card]");
+      if (ticket) {
+        if (selected) {
+          selected.classList.remove("is-selected");
+        }
+        selected = ticket;
+        selected.classList.add("is-selected");
+      }
+    });
+  }
 
   // A page the server already filtered (which also matches notes) keeps its
   // results; the first one is ready for Enter.

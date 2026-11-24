@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -191,10 +190,8 @@ func TestRequireSession(t *testing.T) {
 	wantRedirect(t, runGuard(t, d, d.RequireSession, "/accounts/1", ""), "/login?next=%2Faccounts%2F1")
 	wantRedirect(t, runGuard(t, d, d.RequireSession, "/accounts/1?q=a%20b", ""), "/login?next=%2Faccounts%2F1%3Fq%3Da%2520b")
 
-	dec := runGuard(t, d, d.RequireSession, "/accounts/1", "stale")
-	if dec == nil || !strings.Contains(dec.Location, "expired=1") || !strings.Contains(dec.Location, "next=%2Faccounts%2F1") {
-		t.Fatalf("stale cookie decision = %+v, want expired=1 and next", dec)
-	}
+	wantRedirect(t, runGuard(t, d, d.RequireSession, "/accounts/1", "stale"), "/login?next=%2Faccounts%2F1")
+	wantRedirect(t, runGuard(t, d, d.RequireSession, "/", "stale"), "/login")
 
 	s, err := d.Sessions.Create(dek)
 	if err != nil {

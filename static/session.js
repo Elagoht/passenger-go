@@ -48,10 +48,8 @@
 
   function leave() {
     stop();
-    window.location.assign(
-      "/login?expired=1&next=" +
-        encodeURIComponent(window.location.pathname + window.location.search)
-    );
+    var here = window.location.pathname + window.location.search;
+    window.location.assign(here === "/" ? "/login" : "/login?next=" + encodeURIComponent(here));
   }
 
   function render() {

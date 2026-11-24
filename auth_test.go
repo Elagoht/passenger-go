@@ -226,17 +226,17 @@ func TestSessionExpiry(t *testing.T) {
 	setUp(t, c, env, testPass)
 	env.Clock.Advance(16 * time.Minute)
 
-	res := c.Get("/").WantStatus(http.StatusSeeOther)
-	loc := res.Location()
-	if !strings.Contains(loc, "expired=1") || !strings.Contains(loc, "next=%2F") {
-		t.Fatalf("Location = %q, want expired=1 and next=%%2F", loc)
-	}
+	// The home page sends a stale session to plain /login; any other page
+	// carries itself in next.
+	wantLocation(t, c.Get("/").WantStatus(http.StatusSeeOther), "/login")
+	res := c.Get("/generate").WantStatus(http.StatusSeeOther)
+	wantLocation(t, res, "/login?next=%2Fgenerate")
 	page := c.Follow(res).WantStatus(http.StatusOK)
-	wantBody(t, page, "Your session expired")
+	wantNoBody(t, page, "expired")
 
 	// Signing in again returns to the path in next.
 	res = c.Submit(page, "/login", url.Values{"passphrase": {testPass}}).WantStatus(http.StatusSeeOther)
-	wantLocation(t, res, "/")
+	wantLocation(t, res, "/generate")
 }
 
 func TestLogout(t *testing.T) {
@@ -258,19 +258,19 @@ func TestLogout(t *testing.T) {
 
 	res = c.Submit(home, "/logout", nil).WantStatus(http.StatusSeeOther)
 	wantLocation(t, res, "/login")
-	wantLocation(t, c.Get("/").WantStatus(http.StatusSeeOther), "/login?next=%2F")
+	wantLocation(t, c.Get("/").WantStatus(http.StatusSeeOther), "/login")
 
 	// The old cookie no longer opens anything: the session is gone server-side.
 	replay := collagetest.New(t, env.App.Handler())
 	req := replay.Request(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{Name: session.CookieName, Value: token})
-	wantLocation(t, replay.Do(req).WantStatus(http.StatusSeeOther), "/login?expired=1&next=%2F")
+	wantLocation(t, replay.Do(req).WantStatus(http.StatusSeeOther), "/login")
 
 	// A stale POST is sent to login with no next: after login the browser
 	// would GET it.
 	req = replay.Request(http.MethodPost, "/logout", nil)
 	req.AddCookie(&http.Cookie{Name: session.CookieName, Value: token})
-	wantLocation(t, replay.Do(req).WantStatus(http.StatusSeeOther), "/login?expired=1")
+	wantLocation(t, replay.Do(req).WantStatus(http.StatusSeeOther), "/login")
 
 	// The owner's session is untouched by another client's logout.
 	owner.Get("/").WantStatus(http.StatusOK)

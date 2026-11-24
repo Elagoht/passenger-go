@@ -1094,3 +1094,8 @@ body.auth {
     right: 0;
   }
 }
+
+/* Buttons whose label toggles keep one width, so nothing beside them moves. */
+.button[data-reveal] {
+  min-width: 5.5em;
+}
