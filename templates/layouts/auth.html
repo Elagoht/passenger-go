@@ -4,19 +4,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <link rel="stylesheet" href="{{asset "/static/app.css"}}">
   <link rel="icon" href="{{asset "/static/favicon.svg"}}" type="image/svg+xml">
+  <script src="{{asset "/static/accounts.js"}}" defer></script>
   {{hoist "head"}}
 </head>
 
 <body class="auth">
-  <main>
-    <figure>
-      <img src="{{asset "/static/passenger.png"}}" width="100" height="100" alt="">
-    </figure>
-    <h1>Passenger</h1>
-    <small>Self-Hosted Passphrase Manager</small>
-    {{slot "content"}}
+  <main class="pass">
+    <header class="pass-head">
+      <img src="{{asset "/static/passenger.png"}}" width="44" height="44" alt="">
+      <div>
+        <p class="pass-name">Passenger</p>
+        <p class="pass-tagline">Your self-hosted password vault</p>
+      </div>
+    </header>
+    <div class="pass-body">
+      {{slot "content"}}
+    </div>
   </main>
 </body>
 

@@ -1,34 +1,34 @@
 {{if .NewKey}}
-<section>
-  <strong>Passphrase changed</strong>
+<section class="stack">
+  <h1>Passphrase changed</h1>
   {{template "pages/auth/recovery_shown.html" .NewKey}}
-  <a href="{{pageURL "login"}}">Continue to login</a>
+  <a class="button button-primary button-wide" href="{{pageURL "login"}}">Continue to sign in</a>
 </section>
 {{else}}
-<form method="post" action="{{pageURL "recover"}}">
+<form method="post" action="{{pageURL "recover"}}" class="stack">
   {{csrfToken}}
-  <strong>Recover your vault</strong>
-  <p>Enter your recovery key and choose a new master passphrase. You will get a new recovery key; the old one stops working.</p>
+  <h1>Recover your vault</h1>
+  <p>Enter your recovery key and choose a new master passphrase. You will get a new recovery key, and the old one stops working.</p>
 
-  <label>
+  <label class="field">
     <span>Recovery key</span>
-    <input required name="recovery" autocomplete="off" spellcheck="false">
+    <input required name="recovery" autocomplete="off" spellcheck="false" class="code-input" autofocus>
   </label>
 
-  <label>
+  <label class="field">
     <span>New master passphrase</span>
     <input required type="password" name="passphrase" minlength="12" autocomplete="new-password">
   </label>
 
-  <label>
-    <span>Repeat passphrase</span>
+  <label class="field">
+    <span>Repeat the passphrase</span>
     <input required type="password" name="confirm" minlength="12" autocomplete="new-password">
   </label>
 
-  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+  {{with .Error}}<p class="alert alert-error" role="alert">{{.}}</p>{{end}}
 
-  <button type="submit">Recover</button>
+  <button type="submit" class="button button-primary button-wide">Recover vault</button>
 </form>
 
-<a href="{{pageURL "login"}}">Back to login</a>
+<p class="pass-foot"><a href="{{pageURL "login"}}">Back to sign in</a></p>
 {{end}}

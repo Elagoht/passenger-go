@@ -1,18 +1,18 @@
-<form method="post" action="{{pageURL "login"}}">
+<form method="post" action="{{pageURL "login"}}" class="stack">
   {{csrfToken}}
   <input type="hidden" name="next" value="{{.Next}}">
-  <strong>Unlock your vault</strong>
+  <h1>Unlock your vault</h1>
 
-  {{if .Expired}}<blockquote class="info">Your session expired. Sign in again.</blockquote>{{end}}
+  {{if .Expired}}<p class="alert alert-info">Your session expired. Sign in again to pick up where you left off.</p>{{end}}
 
-  <label>
-    <span>Passphrase</span>
+  <label class="field">
+    <span>Master passphrase</span>
     <input required type="password" name="passphrase" autocomplete="current-password" autofocus>
   </label>
 
-  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+  {{with .Error}}<p class="alert alert-error" role="alert">{{.}}</p>{{end}}
 
-  <button type="submit">Unlock</button>
+  <button type="submit" class="button button-primary button-wide">Unlock</button>
 </form>
 
-<a href="{{pageURL "recover"}}">Forgot passphrase?</a>
+<p class="pass-foot"><a href="{{pageURL "recover"}}">Forgot your passphrase?</a></p>

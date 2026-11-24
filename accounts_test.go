@@ -63,7 +63,7 @@ func TestCreateAccount(t *testing.T) {
 	wantBody(t, list, "strength-strong")
 	wantNoBody(t, list, "some notes")
 	wantBody(t, list, `href="https://github.com"`)
-	wantBody(t, list, `class="initials">G<`)
+	wantBody(t, list, `class="initials" aria-hidden="true">G<`)
 	wantNoBody(t, list, "Str0ng!Passphrase")
 }
 
@@ -189,7 +189,7 @@ func TestExternalLinkOnlyForHTTP(t *testing.T) {
 	list := c.Get("/").WantStatus(http.StatusOK)
 	wantNoBody(t, list, `href="javascript`)
 	wantBody(t, list, `href="http://example.com/a"`)
-	if n := strings.Count(list.Body, `title="Open URL"`); n != 1 {
+	if n := strings.Count(list.Body, `>Open site<`); n != 1 {
 		t.Fatalf("%d external links, want 1", n)
 	}
 }

@@ -1,36 +1,43 @@
-<form method="get" action="{{pageURL "accounts"}}" role="search">
-  <input type="search" name="q" value="{{.Query}}" placeholder="Search accounts..." data-filter="accounts-grid" data-q="{{.Query}}" autocomplete="off">
-</form>
-
 {{if .Empty}}
-<section class="empty-state">
-  <h1>Accounts</h1>
-  <p>No accounts yet.</p>
-  <p>Get started by importing your existing accounts or creating a new one.</p>
-  <nav>
-    <a class="button button-success" href="/import">Import accounts</a>
-    <a class="button" href="{{pageURL "account-new"}}">Add new account</a>
-  </nav>
+<section class="empty">
+  <h1>Your vault is empty</h1>
+  <p>Bring your passwords over from a browser export, or add your first account by hand.</p>
+  <div class="actions">
+    <a class="button button-primary" href="{{pageURL "account-new"}}">Add an account</a>
+    <a class="button" href="/import">Import a CSV</a>
+  </div>
+  <p class="muted">No accounts yet.</p>
 </section>
 {{else}}
-{{if .NoMatch}}<p class="empty-note">No account matches your search.</p>{{end}}
-<div id="accounts-grid">
+<form class="finder" method="get" action="{{pageURL "accounts"}}" role="search">
+  <label class="visually-hidden" for="finder-input">Search accounts</label>
+  <input id="finder-input" type="search" name="q" value="{{.Query}}" placeholder="Search by site, username or address" data-filter="accounts-grid" data-q="{{.Query}}" autocomplete="off" spellcheck="false" data-autofocus>
+  <kbd class="finder-hint" aria-hidden="true">/</kbd>
+</form>
+
+<p class="keys-hint" aria-hidden="true" hidden data-keys-hint>
+  <kbd>↑</kbd><kbd>↓</kbd> choose, <kbd>Enter</kbd> copies the password, <kbd>Shift</kbd>+<kbd>Enter</kbd> the username
+</p>
+
+{{if .NoMatch}}<p class="empty-note">No account matches “{{.Query}}”. <a href="{{pageURL "accounts"}}">Show all</a></p>{{end}}
+
+<ol id="accounts-grid" class="tickets" aria-label="Accounts">
   {{range .Cards}}
-  <div class="account-card" data-card data-search="{{.Search}}">
-    <div class="strength-bar {{.Strength}}"></div>
-    <a class="card-header" href="{{pageURL "account" "id" .ID}}">
-      <div class="initials">{{.Initials}}</div>
-      <div class="card-info">
-        <div class="platform">{{.Platform}}</div>
-        <div class="identifier">{{.Identifier}}</div>
-      </div>
+  <li class="ticket" data-card data-search="{{.Search}}" tabindex="-1">
+    <a class="ticket-main" href="{{pageURL "account" "id" .ID}}">
+      <span class="initials" aria-hidden="true">{{.Initials}}</span>
+      <span class="ticket-text">
+        <span class="platform">{{.Platform}}</span>
+        <span class="identifier">{{.Identifier}}</span>
+      </span>
+      <span class="meter {{.Strength}}" title="Password strength"><i></i><i></i><i></i></span>
     </a>
-    <div class="card-actions">
-      <button type="button" class="button-primary" data-copy-passphrase data-url="{{actionURL "account-passphrase" "id" .ID}}" data-id="{{.ID}}" hidden>Copy password</button>
-      <button type="button" class="button-secondary" data-copy-text="{{.Identifier}}" data-id="{{.ID}}" title="Copy identifier" hidden>Copy user</button>
-      {{with .Link}}<a class="button button-secondary" href="{{.}}" target="_blank" rel="noopener noreferrer" title="Open URL">Open</a>{{end}}
+    <div class="ticket-stub">
+      <button type="button" class="button button-primary" data-copy-passphrase data-url="{{actionURL "account-passphrase" "id" .ID}}" data-id="{{.ID}}" data-name="{{.Platform}}" hidden>Copy password</button>
+      <button type="button" class="button" data-copy-text="{{.Identifier}}" data-id="{{.ID}}" data-name="{{.Platform}}" hidden>Copy username</button>
+      {{with .Link}}<a class="button button-quiet" href="{{.}}" target="_blank" rel="noopener noreferrer">Open site</a>{{end}}
     </div>
-  </div>
+  </li>
   {{end}}
-</div>
+</ol>
 {{end}}

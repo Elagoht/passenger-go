@@ -1,25 +1,25 @@
-<h1>Recovery key</h1>
+<div class="page-head">
+  <a class="back" href="{{pageURL "settings-passphrase"}}">Settings</a>
+  <h1>Recovery key</h1>
+</div>
 
 {{if .NewKey}}
-<section>
+<section class="panel stack">
   {{template "pages/auth/recovery_shown.html" .NewKey}}
-  <a href="{{pageURL "settings-passphrase"}}">Back to settings</a>
+  <a class="button button-primary" href="{{pageURL "settings-passphrase"}}">Done</a>
 </section>
 {{else}}
-<form method="post" action="{{pageURL "settings-recovery"}}" autocomplete="off">
+<form method="post" action="{{pageURL "settings-recovery"}}" autocomplete="off" class="panel stack">
   {{csrfToken}}
-  <strong>Regenerate recovery key</strong>
-  <p>Issues a new recovery key and shows it once. The current key stops working.</p>
+  <p>A new recovery key is shown once. The current key stops working right away.</p>
 
-  <label>
-    <span>Current passphrase</span>
+  <label class="field">
+    <span>Master passphrase</span>
     <input required type="password" name="current" autocomplete="current-password">
   </label>
 
-  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+  {{with .Error}}<p class="alert alert-error" role="alert">{{.}}</p>{{end}}
 
-  <button type="submit">Regenerate</button>
+  <button type="submit" class="button button-primary">Make a new recovery key</button>
 </form>
-
-<a href="{{pageURL "settings-passphrase"}}">Back to settings</a>
 {{end}}

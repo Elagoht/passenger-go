@@ -1,13 +1,17 @@
-<h1>Import</h1>
+<div class="page-head">
+  <a class="back" href="/">All accounts</a>
+  <h1>Import</h1>
+  <p>Bring accounts over from a CSV exported by Firefox, a Chromium browser (Chrome, Edge, Brave) or Passenger. Accounts you already have are left as they are.</p>
+</div>
 
 {{with .Result}}
-<section>
-  <strong>{{.Imported}} {{if eq .Imported 1}}account{{else}}accounts{{end}} imported</strong>
+<section class="panel stack">
+  <h2>{{.Imported}} {{if eq .Imported 1}}account{{else}}accounts{{end}} imported</h2>
   {{if .Failed}}
   <p>{{len .Failed}} failed:</p>
-  <table>
+  <table class="table">
     <thead>
-      <tr><th>Platform</th><th>Identifier</th><th>Reason</th></tr>
+      <tr><th scope="col">Site</th><th scope="col">Username</th><th scope="col">Reason</th></tr>
     </thead>
     <tbody>
       {{range .Failed}}
@@ -16,21 +20,18 @@
     </tbody>
   </table>
   {{end}}
-  <a href="{{pageURL "accounts"}}">Back to accounts</a>
+  <a class="button button-primary" href="{{pageURL "accounts"}}">Go to accounts</a>
 </section>
 {{end}}
 
-<form method="post" action="{{pageURL "import"}}" enctype="multipart/form-data">
+<form method="post" action="{{pageURL "import"}}" enctype="multipart/form-data" class="panel stack">
   {{csrfToken}}
-  <strong>Import accounts</strong>
-  <p>Choose a CSV exported from Firefox, a Chromium browser (Chrome, Edge, Brave) or Passenger. Accounts that already exist are not overwritten.</p>
-
-  <label>
+  <label class="field dropzone">
     <span>CSV file</span>
     <input required type="file" name="file" accept=".csv,text/csv">
   </label>
 
-  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+  {{with .Error}}<p class="alert alert-error" role="alert">{{.}}</p>{{end}}
 
-  <button type="submit">Import</button>
+  <button type="submit" class="button button-primary">Import accounts</button>
 </form>

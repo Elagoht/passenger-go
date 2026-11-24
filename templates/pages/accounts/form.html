@@ -1,47 +1,49 @@
-<h1>{{if .ID}}Account details{{else}}New account{{end}}</h1>
+<div class="page-head">
+  <a class="back" href="/">All accounts</a>
+  <h1>{{if .ID}}{{if .Platform}}{{.Platform}}{{else}}Account{{end}}{{else}}New account{{end}}</h1>
+</div>
 
-<form method="post" action="{{if .ID}}{{pageURL "account" "id" .ID}}{{else}}{{pageURL "account-new"}}{{end}}" autocomplete="off" data-track>
+<form class="account-form" method="post" action="{{if .ID}}{{pageURL "account" "id" .ID}}{{else}}{{pageURL "account-new"}}{{end}}" autocomplete="off" data-track>
   {{csrfToken}}
 
-  <label>
-    <span>Platform</span>
-    <input required type="text" name="platform" value="{{.Platform}}">
-  </label>
+  <div class="fields">
+    <label class="field">
+      <span>Site or app</span>
+      <input required type="text" name="platform" value="{{.Platform}}" placeholder="GitHub"{{if not .ID}} autofocus{{end}}>
+    </label>
 
-  <label>
-    <span>Identifier</span>
-    <input required type="text" name="identifier" value="{{.Identifier}}">
-  </label>
+    <label class="field">
+      <span>Username or email</span>
+      <input required type="text" name="identifier" value="{{.Identifier}}" spellcheck="false">
+    </label>
 
-  <label>
-    <span>URL</span>
-    <input type="text" inputmode="url" name="url" value="{{.URL}}">
-  </label>
+    <label class="field">
+      <span>Address</span>
+      <input type="text" inputmode="url" name="url" value="{{.URL}}" placeholder="github.com" spellcheck="false">
+    </label>
 
-  <label>
-    <span>Passphrase</span>
-    <div class="passphrase-input-container">
-      <input required type="password" id="passphrase" name="passphrase" value="{{.Passphrase}}" autocomplete="new-password">
-    </div>
-  </label>
-
-  <div class="passphrase-actions">
-    <button type="button" class="button-secondary" data-reveal="passphrase" hidden>Show</button>
-    <button type="button" class="button-secondary" data-copy-input="passphrase" hidden>Copy</button>
-    <a class="button button-secondary" href="{{pageURL "generate"}}">Generate</a>
+    <label class="field">
+      <span>Notes</span>
+      <textarea name="notes" rows="4">{{.Notes}}</textarea>
+    </label>
   </div>
 
-  <label>
-    <span>Notes</span>
-    <textarea name="notes">{{.Notes}}</textarea>
-  </label>
+  <div class="secret">
+    <label class="field" for="passphrase"><span>Password</span></label>
+    <input required type="password" id="passphrase" name="passphrase" value="{{.Passphrase}}" autocomplete="new-password" spellcheck="false" class="secret-input">
+    <div class="secret-actions">
+      <button type="button" class="button" data-reveal="passphrase" hidden>Show</button>
+      <button type="button" class="button" data-copy-input="passphrase" data-name="Password" hidden>Copy</button>
+      <button type="button" class="button" data-generate-into="passphrase" hidden>Generate</button>
+    </div>
+    <p class="secret-meter" data-meter-for="passphrase" aria-live="polite"></p>
+  </div>
 
-  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+  {{with .Error}}<p class="alert alert-error" role="alert">{{.}}</p>{{end}}
 
-  <button type="submit"{{if not .ID}} class="button-success"{{end}}>{{if .ID}}Save{{else}}Create{{end}}</button>
+  <div class="form-foot">
+    <button type="submit" class="button button-primary">{{if .ID}}Save changes{{else}}Add account{{end}}</button>
+    <a class="button button-quiet" href="/">Cancel</a>
+    {{if .ID}}<a class="button button-danger-quiet" href="{{pageURL "account-delete" "id" .ID}}">Delete account</a>{{end}}
+  </div>
 </form>
-
-{{if .ID}}
-<h2>Danger zone</h2>
-<a class="button button-danger" href="{{pageURL "account-delete" "id" .ID}}">Delete</a>
-{{end}}

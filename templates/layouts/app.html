@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <link rel="stylesheet" href="{{asset "/static/app.css"}}">
   <link rel="icon" href="{{asset "/static/favicon.svg"}}" type="image/svg+xml">
   <script src="{{asset "/static/session.js"}}" defer></script>
@@ -12,38 +13,50 @@
 </head>
 
 <body class="app" data-session-expires="{{.ExpiresAtMS}}" data-session-remaining="{{.RemainingMS}}">
-  <div id="session-banner" class="session-banner" role="alert" hidden>
-    <span data-session-message></span>
-    <span data-session-error></span>
-    <button type="button" data-session-extend>Extend</button>
-    <button type="button" data-session-signout>Sign out</button>
-  </div>
-  <header class="site-header">
-    <div>
-      <a class="brand" href="/">
-        <img src="{{asset "/static/passenger.png"}}" width="40" height="40" alt="">
-        <span>Passenger</span>
-      </a>
-      <details class="site-nav">
-        <summary aria-label="Menu"><span></span><span></span><span></span></summary>
-        <nav>
-          <a href="/">Accounts</a>
-          <a href="/accounts/new">New</a>
-          <a href="/generate">Generate</a>
+  <a class="skip-link" href="#content">Skip to content</a>
+
+  <header class="topbar">
+    <a class="wordmark" href="/" aria-label="Passenger, all accounts">
+      <img src="{{asset "/static/passenger.png"}}" width="28" height="28" alt="">
+      <span>Passenger</span>
+    </a>
+
+    <nav class="topnav" aria-label="Main">
+      <a href="/">Accounts</a>
+      <a href="/generate">Generator</a>
+      <details class="menu">
+        <summary>More</summary>
+        <div class="menu-panel">
           <a href="/import">Import</a>
           <a href="/export">Export</a>
           <a href="/settings/passphrase">Settings</a>
-          <form id="logout-form" class="logout-form" method="post" action="/logout">
+          <form id="logout-form" method="post" action="/logout">
             {{csrfToken}}
-            <button type="submit" class="logout-button">Logout</button>
+            <button type="submit" class="menu-signout">Sign out</button>
           </form>
-        </nav>
+        </div>
       </details>
-    </div>
+    </nav>
+
+    <a class="button button-primary topbar-new" href="/accounts/new">New account</a>
   </header>
-  <main>
+
+  <main id="content">
     {{slot "content"}}
   </main>
+
+  <div id="session-banner" class="session-banner" role="alert" hidden>
+    <p>
+      <span data-session-message></span>
+      <span class="session-error" data-session-error></span>
+    </p>
+    <div class="session-actions">
+      <button type="button" class="button button-primary" data-session-extend>Stay signed in</button>
+      <button type="button" class="button button-quiet" data-session-signout>Sign out</button>
+    </div>
+  </div>
+
+  <div class="toast" role="status" aria-live="polite" data-toast hidden></div>
 </body>
 
 </html>
