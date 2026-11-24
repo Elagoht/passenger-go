@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Elagoht/collage/pkg/collagetest"
 
@@ -165,6 +166,7 @@ func TestChangePassphrase(t *testing.T) {
 // landing after the change's redirect would replace the rotated cookie and
 // sign the owner out.
 func TestOldCookieAfterPassphraseChangeSetsNothing(t *testing.T) {
+	t.Setenv("SESSION_IDLE", "4s") // the plugin wants a rewrite after 1s
 	owner, env := loggedIn(t)
 	page := owner.Get("/settings/passphrase").WantStatus(http.StatusOK)
 	before := sessionCookieValue(t, page)
@@ -175,6 +177,10 @@ func TestOldCookieAfterPassphraseChangeSetsNothing(t *testing.T) {
 		t.Fatal("the change did not rewrite the cookie")
 	}
 
+	// The plugin reads the real clock: past a quarter of SESSION_IDLE it
+	// rewrites the old cookie on its own, and only the dead response's drop
+	// keeps the revoked handle out. The manager reads the fake clock.
+	time.Sleep(1100 * time.Millisecond)
 	stale := collagetest.New(t, env.App.Handler())
 	send := func(target string) *collagetest.Response {
 		req := stale.Request(http.MethodGet, target, nil)
