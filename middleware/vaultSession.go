@@ -42,7 +42,7 @@ var pluginSession = func(ctx context.Context) cookieSession {
 //     slides the manager's idle window and, by setting the handle again, makes
 //     the plugin rewrite its cookie with a fresh idle limit, so both end at the
 //     same moment (to the second; the plugin counts whole seconds). /session
-//     only peeks and /static/ is skipped; QuietSession keeps the plugin from
+//     only peeks and /static/ is skipped; SessionCookie keeps the plugin from
 //     sliding on those.
 func VaultSession(m *session.Manager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

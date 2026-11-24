@@ -12,7 +12,7 @@ import (
 )
 
 // Status is GET /session. middleware.VaultSession only peeks at this path, and
-// middleware.QuietSession keeps the cookie from being refreshed on it, so
+// middleware.SessionCookie keeps the cookie from being refreshed on it, so
 // polling it never extends the session.
 func Status(d *web.Deps) *collage.Action {
 	return collage.NewAction("session").

@@ -22,10 +22,11 @@ func register(app *collage.App, deps *web.Deps, sessions *session.Plugin) error 
 	if err := app.Use(middleware.NoStore); err != nil {
 		return err
 	}
-	// The session plugin sits between QuietSession, which must be outside it to
-	// drop the cookie it writes, and VaultSession, which reads its session: a
-	// plugin registered here is inside the middleware added before it.
-	if err := app.Use(middleware.QuietSession); err != nil {
+	// The session plugin sits between SessionCookie, which must be outside it
+	// to adjust the cookie it writes, and VaultSession, which reads its
+	// session: a plugin registered here is inside the middleware added before
+	// it.
+	if err := app.Use(middleware.SessionCookie); err != nil {
 		return err
 	}
 	if err := app.RegisterPlugin(sessions); err != nil {

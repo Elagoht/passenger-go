@@ -15,30 +15,68 @@ import (
 	"passenger-go/internal/session"
 )
 
-// The session cookie is the elagoht/session plugin's: encrypted, HttpOnly,
-// SameSite=Strict, and kept by the browser for the shorter of SESSION_IDLE and
-// what is left of SESSION_MAX.
+// The session cookie is the elagoht/session plugin's, encrypted, HttpOnly,
+// SameSite=Strict, and kept for the browser session only, as the security
+// model has it: middleware.SessionCookie takes off the Max-Age the plugin
+// gives it.
 func TestSessionCookie(t *testing.T) {
-	for _, tc := range []struct {
-		idle, max string
-		maxAge    string
-	}{
-		{"", "", "Max-Age=900"},       // 15m idle, 12h in all
-		{"20m", "10m", "Max-Age=600"}, // SESSION_MAX is sooner
-		{"5m", "1h", "Max-Age=300"},
+	c, env := newTestApp(t)
+	setUp(t, c, env, testPass)
+	for _, res := range []*collagetest.Response{
+		c.Get("/").WantStatus(http.StatusOK),
+		login(collagetest.New(t, env.App.Handler()), "/login", testPass).WantStatus(http.StatusSeeOther),
 	} {
-		t.Run(tc.maxAge, func(t *testing.T) {
-			t.Setenv("SESSION_IDLE", tc.idle)
-			t.Setenv("SESSION_MAX", tc.max)
-			c, env := newTestApp(t)
-			setUp(t, c, env, testPass)
-			line := sessionSetCookie(c.Get("/").WantStatus(http.StatusOK))
-			for _, want := range []string{session.CookieName + "=e.", "HttpOnly", "SameSite=Strict", "Path=/", tc.maxAge} {
-				if !strings.Contains(line, want) {
-					t.Errorf("Set-Cookie lacks %q: %s", want, line)
-				}
+		line := sessionSetCookie(res)
+		for _, want := range []string{session.CookieName + "=e.", "HttpOnly", "SameSite=Strict", "Path=/"} {
+			if !strings.Contains(line, want) {
+				t.Errorf("%s %s: Set-Cookie lacks %q: %s", res.Method, res.URL, want, line)
 			}
-		})
+		}
+		for _, unwanted := range []string{"Max-Age", "Expires"} {
+			if strings.Contains(line, unwanted) {
+				t.Errorf("%s %s: Set-Cookie has %s: %s", res.Method, res.URL, unwanted, line)
+			}
+		}
+	}
+}
+
+// The cookie's own limits are SESSION_IDLE and SESSION_MAX, signed into it by
+// the plugin, which reads the real clock: past either, the cookie opens
+// nothing, whatever the DEK manager (on the test's clock) still holds.
+func TestSessionCookieLimits(t *testing.T) {
+	t.Run("idle", func(t *testing.T) {
+		t.Setenv("SESSION_IDLE", "1s")
+		c, env := newTestApp(t)
+		setUp(t, c, env, testPass)
+		c.Get("/").WantStatus(http.StatusOK)
+		time.Sleep(2100 * time.Millisecond)
+		wantLocation(t, c.Get("/generate").WantStatus(http.StatusSeeOther), "/login?next=%2Fgenerate")
+	})
+	t.Run("max", func(t *testing.T) {
+		t.Setenv("SESSION_IDLE", "1h")
+		t.Setenv("SESSION_MAX", "2s")
+		c, env := newTestApp(t)
+		setUp(t, c, env, testPass)
+		time.Sleep(1100 * time.Millisecond)
+		c.Get("/").WantStatus(http.StatusOK) // activity does not push the end back
+		time.Sleep(1100 * time.Millisecond)
+		wantLocation(t, c.Get("/generate").WantStatus(http.StatusSeeOther), "/login?next=%2Fgenerate")
+	})
+}
+
+// A vault page is never compressed (BREACH: it reflects ?q= beside secrets);
+// a static file is.
+func TestOnlyStaticFilesAreCompressed(t *testing.T) {
+	c, _ := loggedIn(t)
+	createAccount(t, c, accountValues("GitHub", "alice", "one-passphrase"))
+	for _, target := range []string{"/?q=git", "/accounts/new", "/static/app.css"} {
+		req := c.Request(http.MethodGet, target, nil)
+		req.Header.Set("Accept-Encoding", "gzip, br")
+		res := c.Do(req).WantStatus(http.StatusOK)
+		got := res.Header.Get("Content-Encoding")
+		if static := strings.HasPrefix(target, "/static/"); static != (got != "") {
+			t.Errorf("%s: Content-Encoding = %q", target, got)
+		}
 	}
 }
 
