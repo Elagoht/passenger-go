@@ -100,7 +100,7 @@ rm -rf /opt/passenger-go/database /opt/passenger-go/.env.old
 sudo systemctl enable --now passenger-go.service
 ```
 
-`migrate` only reads the old files, and refuses to overwrite an existing target database. It writes the new database under a temporary name and moves it into place only once it is complete and verified, so an interrupted run (Ctrl-C included) leaves no half-written vault behind; just run it again.
+`migrate` only reads the old files, and refuses to overwrite an existing target database. It writes the new database under a temporary name (`passenger.db.tmp-…`) and moves it into place only once it is complete and verified, so the target never holds a half-written vault: after Ctrl-C or a failure it cleans up, and you just run it again. If the process was killed outright (or the machine lost power), delete any leftover `/opt/passenger-go/data/passenger.db.tmp-*` files before running it again.
 
 ## Environment Variables
 
