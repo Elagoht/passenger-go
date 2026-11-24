@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.11"
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck install.sh scripts/install_test.sh
+      - name: install.sh tests
+        run: bash scripts/install_test.sh
+      - name: The unit passes systemd-analyze
+        run: |
+          sudo install -d /opt/passenger-go
+          sudo install -m 755 /bin/true /opt/passenger-go/passenger-go
+          sudo touch /opt/passenger-go/.env
+          getent passwd passenger >/dev/null || sudo useradd --system --no-create-home passenger
+          systemd-analyze verify ./passenger-go.service
+          sudo rm -rf /opt/passenger-go
+
+  # A real installation on a real systemd: build the binary, install it with
+  # --yes, and check that the service answers and prints a setup code.
+  install-e2e:
+    runs-on: ubuntu-latest
+    needs: [go, installer]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.11"
+      - name: Build
+        run: CGO_ENABLED=0 go build -trimpath -o passenger-go-linux-amd64 .
+      - name: Install
+        run: sudo bash install.sh --yes --binary ./passenger-go-linux-amd64 --port 18080
+      - name: Check
+        run: |
+          set -x
+          systemctl is-active passenger-go
+          curl -fsS http://127.0.0.1:18080/healthz
+          curl -fsS http://127.0.0.1:18080/readyz
+          sudo journalctl -u passenger-go --no-pager | grep -q "setup code: [0-9]\{8\}"
+          test "$(sudo stat -c '%U %a' /opt/passenger-go/data)" = "passenger 700"
+          test "$(sudo stat -c '%U:%G %a' /opt/passenger-go/.env)" = "root:passenger 640"
+          test "$(sudo stat -c '%U %a' /opt/passenger-go/passenger-go)" = "root 755"
+          systemctl show passenger-go -p User | grep -q "User=passenger"
+      - name: A second run keeps the settings
+        run: |
+          key="$(sudo grep '^CSRF_KEY=' /opt/passenger-go/.env)"
+          sudo bash install.sh --yes --binary ./passenger-go-linux-amd64 | tee second-run.log
+          grep -q "Keeping its settings" second-run.log
+          test "$(sudo grep '^CSRF_KEY=' /opt/passenger-go/.env)" = "$key"
+          curl -fsS http://127.0.0.1:18080/healthz
+      - name: Service log on failure
+        if: failure()
+        run: sudo journalctl -u passenger-go --no-pager -n 100

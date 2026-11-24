@@ -1,17 +1,46 @@
 [Unit]
-Description=Passenger Go
-After=network.target
+Description=Passenger Go, a self-hosted password vault
+Documentation=https://github.com/Elagoht/passenger-go
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-ExecStart=/opt/passenger-go/passenger-go
-Restart=always
-User={USER}
-EnvironmentFile=/opt/passenger-go/.env
+Type=simple
+User=passenger
+Group=passenger
 WorkingDirectory=/opt/passenger-go
+EnvironmentFile=/opt/passenger-go/.env
+ExecStart=/opt/passenger-go/passenger-go
+Restart=on-failure
+RestartSec=2s
+TimeoutStopSec=20s
+UMask=0077
+
+# The vault key lives only in this process's memory; keep it there.
+LimitCORE=0
+CapabilityBoundingSet=
 NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=/opt/passenger-go/data
+ProtectHome=true
 PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 
 [Install]
 WantedBy=multi-user.target

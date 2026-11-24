@@ -97,6 +97,13 @@ jobs:
         with:
           path: artifacts
 
+      - name: Checksums
+        # install.sh checks the binary it downloads against this file.
+        run: |
+          cd artifacts
+          sha256sum binary-*/passenger-go-* | sed 's#  binary-[^/]*/#  #' > SHA256SUMS
+          cat SHA256SUMS
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -113,5 +120,6 @@ jobs:
         with:
           files: |
             artifacts/binary-*/passenger-go-*
+            artifacts/SHA256SUMS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

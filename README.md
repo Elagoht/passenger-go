@@ -53,12 +53,27 @@ Passenger-Go is designed to run as an always-online server on a VPS or a dedicat
 ## Install (Linux, systemd)
 
 ```bash
-git clone https://github.com/Elagoht/passenger-go.git
-cd passenger-go
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/Elagoht/passenger-go/main/install.sh | sudo bash
 ```
 
-The script downloads the latest release binary to `/opt/passenger-go`, installs the systemd unit, asks for the port (default 8080), generates a random `CSRF_KEY` itself and writes `/opt/passenger-go/.env` (mode 600). The database lives in `/opt/passenger-go/data` (mode 700). It needs `sudo`, `curl` and `openssl`.
+or from a clone: `sudo ./install.sh`. The installer:
+
+- downloads the release binary for your machine and checks it against the release's `SHA256SUMS` (or installs one you give it with `--binary`);
+- asks for each setting and checks every answer, re-asking with the reason when one is wrong. You do not need to know them: Enter takes the default, and the secrets are generated for you:
+
+  | Setting | Default | |
+  |---|---|---|
+  | Listen address | `127.0.0.1` | `0.0.0.0` opens it to every network |
+  | Port | `8080`, or a free one | type `random` for a free port; a port already in use is refused |
+  | Form key (`CSRF_KEY`) | generated | press Enter; your own must be 32+ characters |
+  | Idle sign-out | `15m` | `h`, `m`, `s`, e.g. `1h30m` |
+  | Maximum session | `12h` | at least the idle time |
+  | Trusted proxies | `127.0.0.1` when listening locally | IPs or CIDR ranges, comma-separated |
+
+- runs the service as its own system user, `passenger`, under a hardened systemd unit ([`passenger-go.service`](passenger-go.service)): the binary is root-owned and read-only, the service can write only to `/opt/passenger-go/data` (mode 700), and `.env` is readable by root and the service only (mode 640);
+- starts it, waits until it answers on `/healthz`, and prints the setup code.
+
+Run it again to update the binary: your settings are kept. `--reconfigure` asks for them again (the current values are the defaults), `--yes` takes the defaults without asking, `--dry-run` shows everything it would do without changing anything, and `--help` lists every option, including a flag for each setting.
 
 Then serve it on your Tailscale network:
 
@@ -66,7 +81,7 @@ Then serve it on your Tailscale network:
 tailscale serve --bg [YOUR_PORT_HERE]
 ```
 
-Whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale serve`) must send an `X-Forwarded-For` header, and `TRUSTED_PROXIES` in `/opt/passenger-go/.env` must name the proxy's address, `127.0.0.1` when it runs on the same machine; restart the service after changing it. Otherwise every client shares the proxy's address and with it one rate-limit budget for passphrase guesses. A proxy on the same machine is never banned (loopback addresses are exempt), so one client probing for files cannot get everyone banned, but it then goes unbanned too; a proxy on another machine that is not named gets banned, and with it everyone.
+Whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale serve`) must send an `X-Forwarded-For` header, and `TRUSTED_PROXIES` must name the proxy's address, `127.0.0.1` when it runs on the same machine (the installer's default when listening locally). Otherwise every client shares the proxy's address and with it one rate-limit budget for passphrase guesses. A proxy on the same machine is never banned (loopback addresses are exempt), so one client probing for files cannot get everyone banned, but it then goes unbanned too; a proxy on another machine that is not named gets banned, and with it everyone.
 
 ### First run: setup code
 
@@ -76,42 +91,42 @@ Until the vault is set up, the server logs a setup code every time it starts (a 
 journalctl -u passenger-go | grep "setup code" | tail -n 1
 ```
 
-Open the site, enter the code, choose your master passphrase and store the recovery key it shows you somewhere safe.
+The installer prints it when it finishes. Open the site, enter the code, choose your master passphrase and store the recovery key it shows you somewhere safe.
 
 ## Upgrading from the previous version
 
-The old version stored everything under one `AES_GCM_SECRET` in `.env`. Running `install.sh` on such a machine (it finds `/opt/passenger-go/database/passenger.db`) does the following and then stops without starting the service:
+The old version stored everything under one `AES_GCM_SECRET` in `.env`. Running the installer on such a machine (it finds `/opt/passenger-go/database/passenger.db`) keeps listening on every interface and on the old port by default, and:
 
-1. Once the new binary is downloaded, stops and disables the old service, so neither a restart nor a reboot starts the new binary before the migration.
-2. Moves the old `.env` to `/opt/passenger-go/.env.old` (it refuses to run if `.env.old` already exists) and writes a fresh `.env`.
-3. Prints the migration steps, which are:
+1. Once the new binary is downloaded and verified, stops and disables the old service, so neither a restart nor a reboot starts the new binary before the migration.
+2. Moves the old `.env` to `/opt/passenger-go/.env.old` (it refuses to run if `.env.old` already exists), hands the old files to the `passenger` user and writes a fresh `.env`.
+3. Stops without starting the service, and prints the migration steps, which are:
 
 ```bash
-/opt/passenger-go/passenger-go migrate \
+sudo -u passenger /opt/passenger-go/passenger-go migrate \
   --from /opt/passenger-go/database/passenger.db \
   --env /opt/passenger-go/.env.old \
   --to /opt/passenger-go/data/passenger.db
 ```
 
 4. Your master passphrase stays the same. `migrate` prints a **new recovery key**; the old one no longer works, so store the new one.
-5. After a successful migration delete the old files, since they hold the old secret:
+5. After a successful migration delete the old files, since they hold the old secret, and start the service:
 
 ```bash
-rm -rf /opt/passenger-go/database /opt/passenger-go/.env.old
-sudo systemctl enable --now passenger-go.service
+sudo rm -rf /opt/passenger-go/database /opt/passenger-go/.env.old
+sudo systemctl enable --now passenger-go
 ```
 
 `migrate` only reads the old files, and refuses to overwrite an existing target database. It writes the new database under a temporary name (`passenger.db.tmp-…`) and moves it into place only once it is complete and verified, so the target never holds a half-written vault: after Ctrl-C or a failure it cleans up, and you just run it again. If the process was killed outright (or the machine lost power), delete any leftover `/opt/passenger-go/data/passenger.db.tmp-*` files before running it again.
 
 ## Environment Variables
 
-Set in `/opt/passenger-go/.env` (see `.env.example`). `JWT_SECRET`, `AES_GCM_SECRET` and `SALT` are no longer used.
+Set in `/opt/passenger-go/.env` (see `.env.example`); the installer writes them, and `sudo ./install.sh --reconfigure` changes them. `JWT_SECRET`, `AES_GCM_SECRET` and `SALT` are no longer used.
 
 | Variable | Default | Description |
 |---|---|---|
 | `CSRF_KEY` | none, required | At least 32 bytes, e.g. `openssl rand -hex 32` |
 | `PORT` | `8080` | Port to listen on |
-| `HOST` | `localhost` | Address to listen on. `install.sh` sets `0.0.0.0` (the old version listened on all interfaces) |
+| `HOST` | `localhost` | Address to listen on. The installer asks; `127.0.0.1` by default, `0.0.0.0` when upgrading from the old version (which listened on all interfaces) |
 | `DATABASE_PATH` | `./data/passenger.db` | SQLite file; the directory is created (0700), the file is 0600 |
 | `SESSION_IDLE` | `15m` | Sign out after this much inactivity |
 | `SESSION_MAX` | `12h` | Absolute session lifetime |
