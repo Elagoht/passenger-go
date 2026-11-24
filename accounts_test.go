@@ -265,7 +265,7 @@ func TestGenerate(t *testing.T) {
 	}
 
 	res = post(c, "/generate", page.CSRFToken(), url.Values{"length": {"many"}}).WantStatus(http.StatusUnprocessableEntity)
-	wantBody(t, res, "Length must be a number.")
+	wantBody(t, res, "Choose a length between 8 and 4096 characters.")
 }
 
 // The generator's forms post with fetch and get only the result fragment
@@ -294,8 +294,13 @@ func TestGenerateLive(t *testing.T) {
 		t.Fatalf("alternate %q, want 8 runes", got)
 	}
 
+	for _, bad := range []string{"", "3", "5000"} {
+		res = live(url.Values{"length": {bad}}).WantStatus(http.StatusUnprocessableEntity)
+		wantBody(t, res, "Choose a length between 8 and 4096 characters.")
+	}
+
 	res = live(url.Values{"length": {"many"}}).WantStatus(http.StatusUnprocessableEntity)
-	wantBody(t, res, "Length must be a number.")
+	wantBody(t, res, "Choose a length between 8 and 4096 characters.")
 	wantNoBody(t, res, "<html")
 
 	// Without fetch: the whole page, with the typed word kept in its field.
