@@ -61,8 +61,9 @@
     return Promise.resolve();
   }
 
-  // The label never changes, so the ticket does not shift; the toast says
-  // what was copied and the button flashes green.
+  // The label never changes, so the pass does not shift. Instead "Copied" is
+  // stamped in ink over the pass (or the key ticket, or the secret pocket),
+  // absolutely positioned so nothing moves; the toast tells screen readers.
   function markDone(button) {
     if (!button) {
       return;
@@ -71,6 +72,22 @@
     window.setTimeout(function () {
       button.classList.remove("is-done");
     }, 1200);
+    var holder = button.closest("[data-card], .keycard, .secret");
+    if (!holder) {
+      return;
+    }
+    var stamp = holder.querySelector(":scope > .stamp");
+    if (!stamp) {
+      stamp = document.createElement("span");
+      stamp.className = "stamp";
+      stamp.setAttribute("aria-hidden", "true");
+      stamp.textContent = "Copied";
+      holder.appendChild(stamp);
+    }
+    // Restart the animation so a second copy stamps again.
+    stamp.classList.remove("is-stamped");
+    void stamp.offsetWidth;
+    stamp.classList.add("is-stamped");
   }
 
   function copyWithFeedback(button, what, getText) {

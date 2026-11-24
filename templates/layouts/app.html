@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="light">
   <link rel="stylesheet" href="{{asset "/static/app.css"}}">
   <link rel="icon" href="{{asset "/static/favicon.svg"}}" type="image/svg+xml">
   <script src="{{asset "/static/session.js"}}" defer></script>
@@ -18,7 +18,7 @@
   <header class="topbar">
     <a class="wordmark" href="/" aria-label="Passenger, all accounts">
       <img src="{{asset "/static/passenger.png"}}" width="28" height="28" alt="">
-      <span>Passenger</span>
+      <span class="foil">Passenger</span>
     </a>
 
     <nav class="topnav" aria-label="Main">
@@ -41,7 +41,7 @@
     <a class="button button-primary topbar-new" href="/accounts/new">New account</a>
   </header>
 
-  <main id="content">
+  <main id="content" class="wallet">
     {{range flashes}}<p class="alert alert-{{.Kind}}" role="status">{{.Text}}</p>{{end}}
     {{slot "content"}}
   </main>
