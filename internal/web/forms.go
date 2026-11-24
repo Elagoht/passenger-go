@@ -10,8 +10,10 @@ import (
 )
 
 // SafeNext returns raw when it is a local path — starting with "/" but not
-// "//" or "/\", containing no backslash, before and after percent-decoding —
-// and "/" otherwise, so a next parameter cannot redirect off-site.
+// "//" or "/\", containing no backslash and no control character (browsers
+// strip tab and newline, turning "/\t/evil.com" into "//evil.com"), before
+// and after percent-decoding — and "/" otherwise, so a next parameter cannot
+// redirect off-site.
 func SafeNext(raw string) string {
 	if !localPath(raw) {
 		return "/"
@@ -26,7 +28,8 @@ func SafeNext(raw string) string {
 func localPath(p string) bool {
 	return strings.HasPrefix(p, "/") &&
 		!strings.HasPrefix(p, "//") &&
-		!strings.Contains(p, `\`)
+		!strings.Contains(p, `\`) &&
+		strings.IndexFunc(p, func(r rune) bool { return r < 0x20 || r == 0x7f }) < 0
 }
 
 // SessionFrom returns the render's session, or nil when there is none.
