@@ -49,12 +49,14 @@ func SessionFrom(rc *collage.RenderContext) *session.Session {
 // which a guarded page or action never sees.
 var ErrNoSession = errors.New("web: no session on a guarded render")
 
-// RequireSessionFrom is SessionFrom for handlers behind RequireSession: the
-// copy it returns carries the DEK, which the caller wipes after use.
+// RequireSessionFrom is SessionFrom for handlers behind RequireSession. It
+// returns an independent copy of the session, DEK array included, so the
+// caller can wipe its own copy after use without touching the request's.
 func RequireSessionFrom(rc *collage.RenderContext) (*session.Session, error) {
 	s := SessionFrom(rc)
 	if s == nil {
 		return nil, ErrNoSession
 	}
-	return s, nil
+	cp := *s // a struct copy: DEK is an array, so the key bytes are copied too
+	return &cp, nil
 }

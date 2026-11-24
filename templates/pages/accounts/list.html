@@ -1,5 +1,5 @@
 <form method="get" action="{{pageURL "accounts"}}" role="search">
-  <input type="search" name="q" value="{{.Query}}" placeholder="Search accounts..." data-filter="accounts-grid" autocomplete="off">
+  <input type="search" name="q" value="{{.Query}}" placeholder="Search accounts..." data-filter="accounts-grid" data-q="{{.Query}}" autocomplete="off">
 </form>
 
 {{if .Empty}}

@@ -58,13 +58,19 @@ func List(d *web.Deps) *collage.Fragment {
 					Initials:   initials(a.Platform),
 					Strength:   "strength-" + strength.Label(strength.Score(a.Passphrase)),
 					Link:       externalLink(a.URL),
-					Search:     text,
+					Search:     clientText(a),
 				})
 			}
 			v.NoMatch = !v.Empty && len(v.Cards) == 0
 			return v, nil
 		})).
 		Build()
+}
+
+// clientText is what the in-page filter matches: notes can hold secrets, so
+// they stay out of the HTML (the server-side ?q= still searches them).
+func clientText(a store.Account) string {
+	return strings.ToLower(strings.Join([]string{a.Platform, a.Identifier, a.URL}, "\n"))
 }
 
 func searchText(a store.Account) string {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"html"
 	"net/http"
 	"net/url"
@@ -60,6 +61,7 @@ func TestCreateAccount(t *testing.T) {
 	wantBody(t, list, "GitHub")
 	wantBody(t, list, "alice")
 	wantBody(t, list, "strength-strong")
+	wantNoBody(t, list, "some notes")
 	wantBody(t, list, `href="https://github.com"`)
 	wantBody(t, list, `class="initials">G<`)
 	wantNoBody(t, list, "Str0ng!Passphrase")
@@ -74,6 +76,7 @@ func TestCreateAccountKeepsValuesWhenInvalid(t *testing.T) {
 	wantBody(t, res, `value="alice"`)
 	wantBody(t, res, `value="github.com"`)
 	wantBody(t, res, "some notes")
+	wantNoBody(t, res, "secret-x")
 }
 
 func TestDuplicateAccountIsRefused(t *testing.T) {
@@ -118,6 +121,7 @@ func TestUnknownAccountIs404(t *testing.T) {
 
 	page := c.Get("/accounts/new").WantStatus(http.StatusOK)
 	post(c, "/accounts/nope", page.CSRFToken(), accountValues("a", "b", "c")).WantStatus(http.StatusNotFound)
+	post(c, "/accounts/nope", page.CSRFToken(), accountValues("", "", "")).WantStatus(http.StatusNotFound)
 	post(c, "/accounts/nope/delete", page.CSRFToken(), nil).WantStatus(http.StatusNotFound)
 	req := c.Request(http.MethodPost, "/accounts/nope/passphrase", nil)
 	req.Header.Set("X-CSRF-Token", page.CSRFToken())
@@ -199,8 +203,14 @@ func TestPassphraseJSON(t *testing.T) {
 	if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		t.Fatalf("Content-Type = %q", ct)
 	}
-	if !strings.Contains(res.Body, `"passphrase":"s3cret`) {
-		t.Fatalf("body = %s", res.Body)
+	var got struct {
+		Passphrase string `json:"passphrase"`
+	}
+	if err := json.Unmarshal([]byte(res.Body), &got); err != nil {
+		t.Fatalf("body %q: %v", res.Body, err)
+	}
+	if got.Passphrase != "s3cret&<pass>" {
+		t.Fatalf("passphrase = %q, want %q", got.Passphrase, "s3cret&<pass>")
 	}
 
 	// No token.

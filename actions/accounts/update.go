@@ -18,15 +18,20 @@ func Update(d *web.Deps) *collage.Action {
 		WithMethods(http.MethodPost).
 		WithHandler(func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 			id := rc.Param("id")
-			f := readForm(rc.Request)
-			if msg := problem(f); msg != "" {
-				return refuse(rc, f, msg), nil
-			}
 			s, err := web.RequireSessionFrom(rc)
 			if err != nil {
 				return nil, err
 			}
 			defer s.DEK.Wipe()
+			if _, err := d.Store.GetAccount(ctx, s.DEK, id); errors.Is(err, store.ErrNotFound) {
+				return nil, fmt.Errorf("account %q: %w", id, collage.ErrNotFound)
+			} else if err != nil {
+				return nil, err
+			}
+			f := readForm(rc.Request)
+			if msg := problem(f); msg != "" {
+				return refuse(rc, f, msg), nil
+			}
 			err = d.Store.UpdateAccount(ctx, s.DEK, id, record(f))
 			if isDuplicate(err) {
 				return refuse(rc, f, msgDuplicate), nil

@@ -109,8 +109,12 @@
   var filter = document.querySelector("input[data-filter]");
   if (filter) {
     var grid = document.getElementById(filter.dataset.filter);
+    // Enter submits to the server only when the box no longer holds the
+    // query the page was filtered with, so the search can be widened.
     filter.form.addEventListener("submit", function (event) {
-      event.preventDefault();
+      if (filter.value.trim() === (filter.dataset.q || "")) {
+        event.preventDefault();
+      }
     });
     filter.addEventListener("input", function () {
       if (!grid) {
