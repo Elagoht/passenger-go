@@ -1,0 +1,11 @@
+{
+  "elagoht/accesslog": {},
+  "elagoht/health": {},
+  "elagoht/fail2ban": {},
+  "elagoht/compress": {},
+  "elagoht/secure": {},
+  "elagoht/ratelimit": {},
+  "elagoht/session": {},
+  "elagoht/flash": {},
+  "elagoht/validate": {}
+}
