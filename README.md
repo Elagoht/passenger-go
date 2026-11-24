@@ -30,6 +30,7 @@ Passenger-Go is a self-hosted, single-user passphrase manager. It is one Go bina
 - Master passphrase and one-time recovery key
 - Idle and absolute session expiry with a clear "session expired" experience
 - CSRF protection, strict security headers, brute-force back-off (including setup)
+- Bans for clients that probe for files or keep guessing, and `/healthz` and `/readyz` for health checks
 - SQLite database, a single file to back up
 - Single static binary, no CGO
 - Responsive UI with dark/light mode, real-time search, favicons on account cards
@@ -65,7 +66,7 @@ Then serve it on your Tailscale network:
 tailscale serve --bg [YOUR_PORT_HERE]
 ```
 
-If whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale serve`) sends an `X-Forwarded-For` header, set `TRUSTED_PROXIES` in `/opt/passenger-go/.env` to the proxy's address, `127.0.0.1` when it runs on the same machine, and restart the service. Otherwise every client shares the proxy's address and with it one rate-limit budget for passphrase guesses.
+If whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale serve`) sends an `X-Forwarded-For` header, set `TRUSTED_PROXIES` in `/opt/passenger-go/.env` to the proxy's address, `127.0.0.1` when it runs on the same machine, and restart the service. Otherwise every client shares the proxy's address and with it one rate-limit budget for passphrase guesses, and one client probing for files gets the proxy, and with it everyone, banned.
 
 ### First run: setup code
 
