@@ -26,7 +26,7 @@ func New() *collage.Fragment {
 	return collage.NewFragment("account-new", "pages/accounts/form.html").
 		WithTitle("New account - Passenger").
 		WithData(collage.Load(func(_ context.Context, rc *collage.RenderContext) (formView, error) {
-			return submittedView(rc, formView{}, false), nil
+			return submittedView(rc, formView{}), nil
 		})).
 		Build()
 }
@@ -41,7 +41,7 @@ func Detail(d *web.Deps) *collage.Fragment {
 			id := rc.Param("id")
 			if _, refused := Submitted.Get(rc); refused {
 				// The action already found the account; show what was typed.
-				return submittedView(rc, formView{ID: id}, true), nil
+				return submittedView(rc, formView{ID: id}), nil
 			}
 			a, err := load(ctx, d, rc, id)
 			if err != nil {
@@ -55,15 +55,11 @@ func Detail(d *web.Deps) *collage.Fragment {
 		Build()
 }
 
-// submittedView overlays a refused submission and its error on v. The
-// passphrase is put back only when withPassphrase is set (editing an existing
-// account); a new account's form never echoes it.
-func submittedView(rc *collage.RenderContext, v formView, withPassphrase bool) formView {
+// submittedView overlays a refused submission, the account's passphrase
+// included, and its error on v.
+func submittedView(rc *collage.RenderContext, v formView) formView {
 	if f, ok := Submitted.Get(rc); ok {
-		v.Platform, v.Identifier, v.URL, v.Notes = f.Platform, f.Identifier, f.URL, f.Notes
-		if withPassphrase {
-			v.Passphrase = f.Passphrase
-		}
+		v.Platform, v.Identifier, v.Passphrase, v.URL, v.Notes = f.Platform, f.Identifier, f.Passphrase, f.URL, f.Notes
 	}
 	v.Error = formError(rc)
 	return v

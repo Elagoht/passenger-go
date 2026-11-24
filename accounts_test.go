@@ -76,7 +76,9 @@ func TestCreateAccountKeepsValuesWhenInvalid(t *testing.T) {
 	wantBody(t, res, `value="alice"`)
 	wantBody(t, res, `value="github.com"`)
 	wantBody(t, res, "some notes")
-	wantNoBody(t, res, "secret-x")
+	// The account's passphrase is kept like the rest (only the master
+	// passphrase and the recovery key are never echoed).
+	wantBody(t, res, `value="secret-x"`)
 }
 
 func TestDuplicateAccountIsRefused(t *testing.T) {
