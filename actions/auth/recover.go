@@ -31,7 +31,7 @@ func Recover(d *web.Deps) *collage.Action {
 func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		validations.Recover(v)
 		if !v.Valid() {
 			return validate.Refuse(rc, v, rc.Page), nil

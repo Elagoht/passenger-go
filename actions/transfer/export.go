@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 
-	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
 	"passenger-go/internal/transfer"
@@ -30,7 +29,7 @@ func Export(d *web.Deps) *collage.Action {
 func exportHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		if msg, ok, err := d.Throttle(r); err != nil {
 			return nil, err
 		} else if !ok {

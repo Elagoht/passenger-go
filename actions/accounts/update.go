@@ -38,7 +38,7 @@ func updateHandler(d *web.Deps) collage.ActionHandlerFunc {
 		} else if err != nil {
 			return nil, err
 		}
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		rec := validations.Account(v)
 		if !v.Valid() {
 			return validate.Refuse(rc, v, rc.Page), nil

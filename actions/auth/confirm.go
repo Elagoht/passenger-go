@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 
-	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
 	"passenger-go/internal/store"
@@ -35,7 +34,7 @@ func confirmHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if !ok { // expired between the guard and here
 			return collage.SeeOtherPage(rc, "setup", nil)
 		}
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		if msg, ok, err := d.Throttle(r); err != nil {
 			return nil, err
 		} else if !ok {

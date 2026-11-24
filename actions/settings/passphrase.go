@@ -30,7 +30,7 @@ func Passphrase(d *web.Deps) *collage.Action {
 // session and comes back to the page with a flash message.
 func passphraseHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		validations.Passphrase(v)
 		if !v.Valid() {
 			return validate.Refuse(rc, v, rc.Page), nil

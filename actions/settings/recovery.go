@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
 	fragments "passenger-go/fragments/pages/settings"
@@ -26,7 +25,7 @@ func Recovery(d *web.Deps) *collage.Action {
 // mutex, then stores a wrap under a new key and shows it.
 func recoveryHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		d.WrapMu.Lock()
 		defer d.WrapMu.Unlock()
 		dek, kdf, refused, err := utils.Unlock(ctx, d, rc, v)

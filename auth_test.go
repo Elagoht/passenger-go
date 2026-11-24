@@ -202,6 +202,13 @@ func TestLogin(t *testing.T) {
 	// Logged in: the login page sends the reader home.
 	wantLocation(t, guest.Get("/login").WantStatus(http.StatusSeeOther), "/")
 
+	// The passphrase is read from the body only, never from the URL.
+	query := collagetest.New(t, env.App.Handler())
+	page := query.Get("/login").WantStatus(http.StatusOK)
+	res = post(query, "/login?passphrase="+url.QueryEscape(testPass), page.CSRFToken(), url.Values{"next": {"/"}}).
+		WantStatus(http.StatusUnprocessableEntity)
+	wantBody(t, res, "Wrong passphrase")
+
 	evil := collagetest.New(t, env.App.Handler())
 	res = login(evil, "/login?next="+url.QueryEscape("//evil.com"), testPass).WantStatus(http.StatusSeeOther)
 	wantLocation(t, res, "/")

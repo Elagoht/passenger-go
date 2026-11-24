@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	session "github.com/Elagoht/collage-session"
-	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
 	"passenger-go/internal/vault"
@@ -30,7 +29,7 @@ func Login(d *web.Deps) *collage.Action {
 func loginHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		if msg, ok, err := d.Throttle(r); err != nil {
 			return nil, err
 		} else if !ok {

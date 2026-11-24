@@ -85,6 +85,9 @@ func TestGuestGuard(t *testing.T) {
 	wantLocation(t, c.Get("/recover").WantStatus(http.StatusSeeOther), "/")
 	wantLocation(t, c.Get("/login?next=%2Fgenerate").WantStatus(http.StatusSeeOther), "/generate")
 	wantLocation(t, c.Get("/login?next="+"%2F%2Fevil.com").WantStatus(http.StatusSeeOther), "/")
+	// One that only decodes to an off-site path, which collage.SafeRedirect
+	// alone lets through.
+	wantLocation(t, c.Get("/login?next=%2F%252F%252Fevil.com").WantStatus(http.StatusSeeOther), "/")
 }
 
 // guards.Uninitialized and guards.PendingSetup: setup is there only until the

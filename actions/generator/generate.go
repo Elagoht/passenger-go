@@ -11,6 +11,7 @@ import (
 	fragments "passenger-go/fragments/pages/generator"
 	"passenger-go/internal/generator"
 	"passenger-go/internal/web"
+	"passenger-go/utils"
 	"passenger-go/validations"
 )
 
@@ -27,7 +28,7 @@ func Generate(_ *web.Deps) *collage.Action {
 // generateHandler makes the look-alike or the random passphrase.
 func generateHandler() collage.ActionHandlerFunc {
 	return func(_ context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		var (
 			out string
 			err error

@@ -30,7 +30,7 @@ func Create(d *web.Deps) *collage.Action {
 // with what was typed kept, and otherwise opens the new account.
 func createHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
-		v := validate.Form(rc)
+		v := utils.PostForm(rc)
 		rec := validations.Account(v)
 		if !v.Valid() {
 			return validate.Refuse(rc, v, rc.Page), nil
