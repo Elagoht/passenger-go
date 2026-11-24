@@ -69,10 +69,10 @@ If whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale
 
 ### First run: setup code
 
-On the first start the server logs a one-time setup code. Setting up the vault (choosing the master passphrase) requires it, so nobody else can claim a fresh server before you:
+Until the vault is set up, the server logs a setup code every time it starts (a new one on each start; only the newest works). Setting up the vault (choosing the master passphrase) requires it, so nobody else can claim a fresh server before you. Use the newest line:
 
 ```bash
-journalctl -u passenger-go | grep "setup code"
+journalctl -u passenger-go | grep "setup code" | tail -n 1
 ```
 
 Open the site, enter the code, choose your master passphrase and store the recovery key it shows you somewhere safe.
@@ -81,26 +81,26 @@ Open the site, enter the code, choose your master passphrase and store the recov
 
 The old version stored everything under one `AES_GCM_SECRET` in `.env`. Running `install.sh` on such a machine (it finds `/opt/passenger-go/database/passenger.db`) does the following and then stops without starting the service:
 
-1. Moves the old `.env` to `/opt/passenger-go/.env.old` (it refuses to run if `.env.old` already exists) and writes a fresh `.env`.
-2. Prints the migration steps, which are:
+1. Once the new binary is downloaded, stops and disables the old service, so neither a restart nor a reboot starts the new binary before the migration.
+2. Moves the old `.env` to `/opt/passenger-go/.env.old` (it refuses to run if `.env.old` already exists) and writes a fresh `.env`.
+3. Prints the migration steps, which are:
 
 ```bash
-sudo systemctl stop passenger-go
 /opt/passenger-go/passenger-go migrate \
   --from /opt/passenger-go/database/passenger.db \
   --env /opt/passenger-go/.env.old \
   --to /opt/passenger-go/data/passenger.db
 ```
 
-3. Your master passphrase stays the same. `migrate` prints a **new recovery key**; the old one no longer works, so store the new one.
-4. After a successful migration delete the old files, since they hold the old secret:
+4. Your master passphrase stays the same. `migrate` prints a **new recovery key**; the old one no longer works, so store the new one.
+5. After a successful migration delete the old files, since they hold the old secret:
 
 ```bash
-rm -f /opt/passenger-go/database/passenger.db /opt/passenger-go/.env.old
+rm -rf /opt/passenger-go/database /opt/passenger-go/.env.old
 sudo systemctl enable --now passenger-go.service
 ```
 
-`migrate` only reads the old files, and refuses to overwrite an existing target database.
+`migrate` only reads the old files, and refuses to overwrite an existing target database. It writes the new database under a temporary name and moves it into place only once it is complete and verified, so an interrupted run (Ctrl-C included) leaves no half-written vault behind; just run it again.
 
 ## Environment Variables
 

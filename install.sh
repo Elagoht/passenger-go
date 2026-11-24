@@ -58,10 +58,6 @@ if [ -f "$OLD_DB" ]; then
         errorPrint "Old database found but $INSTALL_DIR/.env is missing; the old AES_GCM_SECRET is needed to migrate."
         exit 1
     fi
-    # Stop the old service so the new binary cannot be started (Restart=always)
-    # and create data/passenger.db before migrate runs.
-    infoPrint "Stopping the old service..."
-    sudo systemctl stop passenger-go || true
 fi
 
 # Re-run on a new-format install: keep the existing configuration untouched.
@@ -82,6 +78,15 @@ if ! sudo curl -fsSL "https://github.com/Elagoht/passenger-go/releases/latest/do
     exit 1
 fi
 sudo chmod +x "$INSTALL_DIR/passenger-go.new"
+
+if [ "$upgrade" == true ]; then
+    # Only now that the new binary is here: stop the old service and keep it
+    # from starting at boot, so the new binary cannot start (Restart=always,
+    # or a reboot) and create data/passenger.db before migrate runs.
+    infoPrint "Stopping and disabling the old service..."
+    sudo systemctl disable --now passenger-go || true
+fi
+
 sudo mv -f "$INSTALL_DIR/passenger-go.new" "$INSTALL_DIR/passenger-go"
 
 infoPrint "Setting permissions..."
@@ -137,18 +142,16 @@ infoPrint "Reloading systemd..."
 sudo systemctl daemon-reload
 
 if [ "$upgrade" == true ]; then
-    errorPrint "An old installation was found. The service has NOT been enabled or started."
+    errorPrint "An old installation was found. The service has been stopped and disabled, and NOT started again."
     echo
     echo "Migrate your accounts into the new vault, in this order:"
     echo
-    echo "  1. Stop the old service:"
-    echo "       sudo systemctl stop passenger-go"
-    echo "  2. Run the migration (your master passphrase stays the same):"
+    echo "  1. Run the migration (your master passphrase stays the same):"
     echo "       $INSTALL_DIR/passenger-go migrate --from $OLD_DB --env $INSTALL_DIR/.env.old --to $NEW_DB"
-    echo "  3. Write down the NEW recovery key it prints; the old one no longer works."
-    echo "  4. After a successful migration, delete the old files (they hold the old secret):"
-    echo "       rm -f $OLD_DB $INSTALL_DIR/.env.old"
-    echo "  5. Enable and start the service:"
+    echo "  2. Write down the NEW recovery key it prints; the old one no longer works."
+    echo "  3. After a successful migration, delete the old files (they hold the old secret):"
+    echo "       rm -rf $INSTALL_DIR/database $INSTALL_DIR/.env.old"
+    echo "  4. Enable and start the service:"
     echo "       sudo systemctl enable --now passenger-go.service"
     exit 1
 fi
@@ -163,6 +166,6 @@ fi
 
 successPrint "Done!"
 if [ "$keep_env" == false ]; then
-    infoPrint "Passenger Go prints a one-time setup code on first start. Find it with:"
-    echo "    journalctl -u passenger-go | grep \"setup code\""
+    infoPrint "Passenger Go prints a setup code on every start until the vault is set up; use the newest one:"
+    echo "    journalctl -u passenger-go | grep \"setup code\" | tail -n 1"
 fi
