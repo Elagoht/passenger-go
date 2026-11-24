@@ -11,6 +11,20 @@ fails=0
 pass() { printf '  ok    %s\n' "$1"; }
 fail() { printf '  FAIL  %s\n' "$1"; fails=$((fails + 1)); }
 
+# check NAME COMMAND...: passes when COMMAND succeeds.
+check() {
+    local name="$1"
+    shift
+    if "$@"; then pass "$name"; else fail "$name"; fi
+}
+# refused NAME COMMAND...: passes when COMMAND fails; its output is kept in $out.
+out=""
+refused() {
+    local name="$1"
+    shift
+    if out=$("$@" 2>&1); then fail "$name (want it refused)"; else pass "$name"; fi
+}
+
 expect_ok()  { if "$@" 2>/dev/null; then pass "$*"; else fail "$* (want accepted)"; fi; }
 expect_bad() { if "$@" 2>/dev/null; then fail "$* (want refused)"; else pass "refuses: $*"; fi; }
 
@@ -29,10 +43,13 @@ lacks() {
 
 # ---------------------------------------------------------- functions ----
 (
-    PASSENGER_INSTALL_LIB=1
-    # shellcheck source=../install.sh
-    . "$INSTALLER"
-    port_in_use() { [ "$1" = 4444 ]; } # pretend 4444 is taken
+    # The installer's functions, without running it. The variables set below
+    # are read by those functions (shellcheck cannot see that).
+    # shellcheck disable=SC2034,SC1091
+    PASSENGER_INSTALL_LIB=1 . "$INSTALLER"
+    # Pretend 4444 is taken; called by check_port and gen_port.
+    # shellcheck disable=SC2329
+    port_in_use() { [ "$1" = 4444 ]; }
 
     echo "checks"
     expect_ok check_host 127.0.0.1
@@ -55,12 +72,14 @@ lacks() {
     expect_bad check_port 80a
     expect_bad check_port ""
     expect_bad check_port 4444
+    # shellcheck disable=SC2034 # read by check_port
     CURRENT_PORT=4444
     expect_ok check_port 4444 # the existing install's own port
 
     expect_ok check_csrf_key "0123456789abcdef0123456789abcdef"
     expect_bad check_csrf_key "short"
     expect_bad check_csrf_key "0123456789abcdef0123456789abcdef with space"
+    # shellcheck disable=SC2016 # a literal $ is what is being refused
     expect_bad check_csrf_key '0123456789abcdef0123456789abcdef$x'
     expect_bad check_csrf_key '0123456789abcdef0123456789abcdef"'
     expect_bad check_csrf_key '0123456789abcdef0123456789abcdef#'
@@ -73,9 +92,10 @@ lacks() {
     expect_bad check_duration 1.5h
     expect_bad check_duration 15min
     expect_bad check_duration ""
-    [ "$(duration_seconds 1h30m)" = 5400 ] && pass "1h30m is 5400s" || fail "1h30m is 5400s"
-    [ "$(duration_seconds 2h15s)" = 7215 ] && pass "2h15s is 7215s" || fail "2h15s is 7215s"
+    check "1h30m is 5400s" [ "$(duration_seconds 1h30m)" = 5400 ]
+    check "2h15s is 7215s" [ "$(duration_seconds 2h15s)" = 7215 ]
 
+    # shellcheck disable=SC2034 # read by check_session_max
     SESSION_IDLE_SECONDS=3600
     expect_ok check_session_max 1h
     expect_ok check_session_max 12h
@@ -88,17 +108,17 @@ lacks() {
     expect_bad check_proxies 10.0.0.0/33
     expect_bad check_proxies "127.0.0.1,,10.0.0.1"
     expect_bad check_proxies proxy.local
-    [ "$(normalize_proxies "127.0.0.1, 10.0.0.0/8")" = "127.0.0.1,10.0.0.0/8" ] &&
-        pass "proxies normalised" || fail "proxies normalised"
+    check "proxies normalised" [ "$(normalize_proxies "127.0.0.1, 10.0.0.0/8")" = "127.0.0.1,10.0.0.0/8" ]
 
     echo "generators"
     key=$(gen_csrf_key)
-    check_csrf_key "$key" && [ "${#key}" = 64 ] && pass "generated key is 64 valid characters" ||
-        fail "generated key: $key"
-    [ "$key" != "$(gen_csrf_key)" ] && pass "keys differ" || fail "keys differ"
+    check "generated key is valid" check_csrf_key "$key"
+    check "generated key has 64 characters" [ "${#key}" = 64 ]
+    check "keys differ" [ "$key" != "$(gen_csrf_key)" ]
     p=$(gen_port)
-    check_port "$p" && [ "$p" -ge 20000 ] && [ "$p" -lt 60000 ] && pass "random port $p is free and in range" ||
-        fail "random port $p"
+    check "random port $p is free" check_port "$p"
+    check "random port $p is at least 20000" [ "$p" -ge 20000 ]
+    check "random port $p is below 60000" [ "$p" -lt 60000 ]
 
     exit "$fails"
 ) || fails=$((fails + $?))
@@ -128,9 +148,11 @@ trap 'rm -rf "$tmp"' EXIT
 fake_bin="$tmp/passenger-go-bin"
 printf 'fake' >"$fake_bin"
 
-out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/fresh" --binary "$fake_bin" --port 18080 2>&1)
-status=$?
-[ "$status" = 0 ] && pass "fresh --yes dry run succeeds" || fail "fresh --yes dry run exit $status"
+if out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/fresh" --binary "$fake_bin" --port 18080 2>&1); then
+    pass "fresh --yes dry run succeeds"
+else
+    fail "fresh --yes dry run failed"
+fi
 contains "listens on loopback by default" "$out" "HOST=127.0.0.1"
 contains "keeps the given port" "$out" "PORT=18080"
 contains "generates a 64-character key" "$out" "CSRF_KEY=<64 characters>"
@@ -140,7 +162,7 @@ contains "trusts the local proxy" "$out" "TRUSTED_PROXIES=127.0.0.1"
 contains "database under data" "$out" "DATABASE_PATH=$tmp/fresh/data/passenger.db"
 contains "prints the unit" "$out" "ExecStart=$tmp/fresh/passenger-go"
 contains "starts the service" "$out" "systemctl enable --now passenger-go"
-[ ! -e "$tmp/fresh" ] && pass "dry run created nothing" || fail "dry run created $tmp/fresh"
+check "dry run created nothing" [ ! -e "$tmp/fresh" ]
 
 out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/open" --binary "$fake_bin" --port 18081 --host 0.0.0.0 --trusted-proxies "" 2>&1)
 contains "open host is written" "$out" "HOST=0.0.0.0"
@@ -148,21 +170,16 @@ contains "open host warns" "$out" "plain HTTP"
 contains "empty proxies when asked" "$out" "TRUSTED_PROXIES="
 lacks "no proxies trusted" "$out" "TRUSTED_PROXIES=127"
 
-out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$fake_bin" --port 70000 2>&1)
-[ $? != 0 ] && pass "refuses port 70000" || fail "accepted port 70000"
+refused "refuses port 70000" bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$fake_bin" --port 70000
 contains "says why" "$out" "between 1 and 65535"
 
-out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$fake_bin" --port 18082 --session-idle 2h --session-max 1h 2>&1)
-[ $? != 0 ] && pass "refuses max shorter than idle" || fail "accepted max shorter than idle"
+refused "refuses max shorter than idle" bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$fake_bin" --port 18082 --session-idle 2h --session-max 1h
 
-out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$fake_bin" --port 18083 --csrf-key short 2>&1)
-[ $? != 0 ] && pass "refuses a short key" || fail "accepted a short key"
+refused "refuses a short key" bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$fake_bin" --port 18083 --csrf-key short
 
-out=$(bash "$INSTALLER" --dry-run --yes --dir relative --binary "$fake_bin" 2>&1)
-[ $? != 0 ] && pass "refuses a relative --dir" || fail "accepted a relative --dir"
+refused "refuses a relative --dir" bash "$INSTALLER" --dry-run --yes --dir relative --binary "$fake_bin"
 
-out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$tmp/missing" 2>&1)
-[ $? != 0 ] && pass "refuses a missing --binary" || fail "accepted a missing --binary"
+refused "refuses a missing --binary" bash "$INSTALLER" --dry-run --yes --dir "$tmp/x" --binary "$tmp/missing"
 
 mkdir -p "$tmp/existing"
 printf 'HOST=127.0.0.1\nPORT=18090\nCSRF_KEY=%s\n' "$(printf 'k%.0s' $(seq 1 40))" >"$tmp/existing/.env"
@@ -185,8 +202,7 @@ contains "upgrade stops the old service" "$out" "systemctl disable --now passeng
 contains "migrate runs as the service user" "$out" "sudo -u passenger $tmp/old/passenger-go migrate --from $tmp/old/database/passenger.db --env $tmp/old/.env.old"
 lacks "upgrade does not start the service" "$out" "systemctl enable --now passenger-go"$'\n'
 touch "$tmp/old/.env.old"
-out=$(bash "$INSTALLER" --dry-run --yes --dir "$tmp/old" --binary "$fake_bin" 2>&1)
-[ $? != 0 ] && pass "refuses to overwrite .env.old" || fail "overwrote .env.old"
+refused "refuses to overwrite .env.old" bash "$INSTALLER" --dry-run --yes --dir "$tmp/old" --binary "$fake_bin"
 
 echo
 if [ "$fails" = 0 ]; then

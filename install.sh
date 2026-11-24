@@ -440,14 +440,14 @@ fetch_binary() {
 
 # wait_healthy HOST PORT polls /healthz until the service answers.
 wait_healthy() {
-    local host="$1" port="$2" probe i
+    local host="$1" port="$2" probe
     case "$host" in
         0.0.0.0 | 127.0.0.1 | localhost) probe="127.0.0.1" ;;
         :: | ::1) probe="[::1]" ;;
         *:*) probe="[$host]" ;;
         *) probe="$host" ;;
     esac
-    for i in $(seq 1 30); do
+    for _ in $(seq 1 30); do
         if curl -fsS --max-time 2 "http://$probe:$port/healthz" >/dev/null 2>&1; then
             return 0
         fi
@@ -785,6 +785,7 @@ TRUSTED_PROXIES=$proxies"
 
 # Sourced by the tests for its functions; run as a program otherwise.
 if [ "${PASSENGER_INSTALL_LIB:-}" = 1 ]; then
+    # shellcheck disable=SC2317 # exit is reached only when run, not sourced
     return 0 2>/dev/null || exit 0
 fi
 main "$@"
