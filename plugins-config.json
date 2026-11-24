@@ -7,5 +7,6 @@
   "elagoht/ratelimit": {},
   "elagoht/session": {},
   "elagoht/flash": {},
-  "elagoht/validate": {}
+  "elagoht/validate": {},
+  "elagoht/client": {}
 }

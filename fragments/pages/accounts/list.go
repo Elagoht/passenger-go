@@ -107,7 +107,7 @@ const listBlock collage.InlineHTML = `{{if .Empty}}
 </form>
 
 <p class="keys-hint" aria-hidden="true" hidden data-keys-hint>
-  <kbd>↑</kbd><kbd>↓</kbd> choose, <kbd>Enter</kbd> copies the password, <kbd>Shift</kbd>+<kbd>Enter</kbd> the username
+  <kbd>/</kbd> search, <kbd>Enter</kbd> done, <kbd>j</kbd><kbd>k</kbd> choose, <kbd>c</kbd> copy password, <kbd>u</kbd> copy username, <kbd>e</kbd> edit
 </p>
 
 {{if .NoMatch}}<p class="empty-note">No account matches “{{.Query}}”. <a href="{{pageURL "accounts"}}">Show all</a></p>{{end}}

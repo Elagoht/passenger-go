@@ -10,6 +10,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/Elagoht/collage/pkg/collage"
 	"github.com/Elagoht/collage/pkg/collagetest"
 )
 
@@ -265,4 +266,39 @@ func TestGenerate(t *testing.T) {
 
 	res = post(c, "/generate", page.CSRFToken(), url.Values{"length": {"many"}}).WantStatus(http.StatusUnprocessableEntity)
 	wantBody(t, res, "Length must be a number.")
+}
+
+// The generator's forms post with fetch and get only the result fragment
+// back, so the page (and what is typed in it) is not sent again. A plain
+// post still answers with the whole page and keeps what was typed.
+func TestGenerateLive(t *testing.T) {
+	c, _ := loggedIn(t)
+	page := c.Get("/generate").WantStatus(http.StatusOK)
+	wantBody(t, page, `data-live="#generator-result"`)
+
+	live := func(v url.Values) *collagetest.Response {
+		req := c.Request(http.MethodPost, "/generate", strings.NewReader(v.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-CSRF-Token", page.CSRFToken())
+		req.Header.Set(collage.FetchHeader, "1")
+		return c.Do(req)
+	}
+
+	res := live(url.Values{"source": {"password"}}).WantStatus(http.StatusOK)
+	if !strings.HasPrefix(strings.TrimSpace(res.Body), `<div id="generator-result"`) {
+		t.Fatalf("live answer is not the result fragment alone:\n%s", res.Body)
+	}
+	wantNoBody(t, res, "<html")
+	wantNoBody(t, res, "Look-alike version")
+	if got := generated(t, res); utf8.RuneCountInString(got) != 8 {
+		t.Fatalf("alternate %q, want 8 runes", got)
+	}
+
+	res = live(url.Values{"length": {"many"}}).WantStatus(http.StatusUnprocessableEntity)
+	wantBody(t, res, "Length must be a number.")
+	wantNoBody(t, res, "<html")
+
+	// Without fetch: the whole page, with the typed word kept in its field.
+	res = post(c, "/generate", page.CSRFToken(), url.Values{"source": {"hello"}}).WantStatus(http.StatusOK)
+	wantBody(t, res, `name="source" value="hello"`)
 }

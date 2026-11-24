@@ -12,11 +12,12 @@ import (
 
 // Generate is /generate, the passphrase generator.
 func Generate(d *web.Deps) *collage.Page {
+	result := fragments.Result()
 	return collage.NewPage("generate").
 		WithLayouts(layouts.App(d)).
-		WithContent(fragments.Generate()).
+		WithContent(fragments.Generate(result)).
 		WithPath("en", "/generate").
-		WithActionFor(actions.Generate(d)).
+		WithActionFor(actions.Generate(d, result)).
 		Dynamic().
 		Build()
 }

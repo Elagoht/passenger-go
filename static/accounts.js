@@ -88,12 +88,57 @@
     stamp.classList.remove("is-stamped");
     void stamp.offsetWidth;
     stamp.classList.add("is-stamped");
+    // Remove it when it has faded: a stamp left in place replays its
+    // animation when a filtered-out pass is shown again.
+    window.clearTimeout(stamp.removeTimer);
+    stamp.removeTimer = window.setTimeout(function () {
+      stamp.remove();
+    }, 1600);
   }
 
-  function copyWithFeedback(button, what, getText) {
-    Promise.resolve()
-      .then(getText)
-      .then(copyText)
+  // Starts the clipboard write synchronously, inside the key press or click
+  // that asked for it: Safari refuses a write that begins after an await (the
+  // password fetch), Chrome and Firefox allow both. source is the text, or a
+  // promise of it. A ClipboardItem takes the promise and fills in when the
+  // fetch answers; an engine that refuses one falls back to writeText.
+  function startCopy(source) {
+    var clipboard = navigator.clipboard && window.isSecureContext ? navigator.clipboard : null;
+    if (typeof source === "string") {
+      if (clipboard) {
+        return clipboard.writeText(source).catch(function () {
+          legacyCopy(source);
+        });
+      }
+      try {
+        legacyCopy(source);
+        return Promise.resolve();
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    }
+    var text = Promise.resolve(source).then(function (value) {
+      if (typeof value !== "string") {
+        throw new Error("nothing to copy");
+      }
+      return value;
+    });
+    if (clipboard && typeof clipboard.write === "function" && typeof window.ClipboardItem === "function") {
+      var item = new window.ClipboardItem({
+        "text/plain": text.then(function (value) {
+          return new Blob([value], { type: "text/plain" });
+        }),
+      });
+      return clipboard.write([item]).catch(function () {
+        return text.then(function (value) {
+          return clipboard.writeText(value);
+        });
+      });
+    }
+    return text.then(copyText);
+  }
+
+  function copyWithFeedback(button, what, source) {
+    startCopy(source)
       .then(function () {
         markDone(button);
         toast(what + " copied");
@@ -139,16 +184,12 @@
 
   function copyPassword(button) {
     var name = button.dataset.name || "Password";
-    copyWithFeedback(button, name + " password", function () {
-      return fetchPassphrase(button.dataset.url);
-    });
+    copyWithFeedback(button, name + " password", fetchPassphrase(button.dataset.url));
   }
 
   function copyUsername(button) {
     var name = button.dataset.name || "Username";
-    copyWithFeedback(button, name + " username", function () {
-      return button.dataset.copyText;
-    });
+    copyWithFeedback(button, name + " username", button.dataset.copyText);
   }
 
   // Generator and strength (mirrors internal/generator and internal/strength)
@@ -282,9 +323,8 @@
       button.textContent = show ? "Hide" : "Show";
     } else if (button.dataset.copyInput) {
       var source = document.getElementById(button.dataset.copyInput);
-      copyWithFeedback(button, button.dataset.name || "Text", function () {
-        return "value" in source ? source.value : source.textContent.trim();
-      });
+      copyWithFeedback(button, button.dataset.name || "Text",
+        "value" in source ? source.value : source.textContent.trim());
     } else if (button.dataset.copyText !== undefined) {
       copyUsername(button);
     } else if (button.dataset.copyPassphrase !== undefined) {
@@ -301,6 +341,43 @@
       target.dispatchEvent(new Event("input", { bubbles: true }));
       toast("New password generated");
     }
+  });
+
+  // Live forms: a form marked data-live="#target" posts with fetch and puts
+  // the fragment the action answers with in place of #target, through the
+  // collage-client script, so the rest of the page (and what is typed in it)
+  // stays. Without the script, or on any failure, the form posts as usual.
+  document.addEventListener("submit", function (event) {
+    var form = event.target.closest("form[data-live]");
+    if (!form || !window.collage || typeof window.collage.put !== "function") {
+      return;
+    }
+    event.preventDefault();
+    fetch(form.action, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Collage-Fetch": "1" },
+      body: new FormData(form),
+    }).then(function (response) {
+      if (response.redirected) {
+        sessionExpired();
+        throw new Error("session expired");
+      }
+      if (!response.ok && response.status !== 422) {
+        throw new Error("status " + response.status);
+      }
+      return response.text();
+    }).then(function (html) {
+      var placed = window.collage.put(form.dataset.live, html);
+      placed.querySelectorAll("button[hidden]").forEach(function (button) {
+        button.hidden = false;
+      });
+    }).catch(function (error) {
+      if (error && error.message === "session expired") {
+        return;
+      }
+      form.submit();
+    });
   });
 
   // Finder: live filter and keyboard navigation over the tickets ------------
@@ -356,8 +433,11 @@
     tickets.forEach(function (ticket) {
       ticket.hidden = query !== "" && ticket.dataset.search.indexOf(query) === -1;
     });
-    // While searching, the first match is ready for Enter.
-    select(query ? visibleTickets()[0] : null);
+    // While searching the first match is selected; when the search is
+    // cleared the selection stays (or falls back to the first pass).
+    if (query || !selected || selected.hidden) {
+      select(visibleTickets()[0]);
+    }
   }
 
   filter.addEventListener("input", applyFilter);
@@ -371,48 +451,83 @@
     event.preventDefault();
   });
 
-  function copyFromSelected(username) {
+  function pressInSelected(selector) {
     if (!selected) {
       return;
     }
-    var button = selected.querySelector(username ? "[data-copy-text]" : "[data-copy-passphrase]");
-    if (button) {
-      button.click();
+    var control = selected.querySelector(selector);
+    if (control) {
+      control.click();
     }
   }
 
-  // Keys work anywhere on the page, not only in the search box: clicking a
-  // ticket or a copy button must not break arrow navigation.
+  // Keys, vim style. The search box is "insert mode": typing filters, and
+  // Enter or Escape leaves it. Anywhere else on the page is "normal mode":
+  //   j / k   next / previous pass
+  //   c       copy the password      u   copy the username
+  //   e       edit the account       /   back to the search box
+  //   Escape  clear the selection
   document.addEventListener("keydown", function (event) {
     if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
       return;
     }
     var target = event.target;
     var tag = (target.tagName || "").toLowerCase();
-    var inFilter = target === filter;
-    var typingElsewhere = !inFilter && (tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable);
-    if (typingElsewhere) {
+
+    if (target === filter) {
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        if (event.key === "Escape" && filter.value) {
+          filter.value = "";
+          applyFilter();
+          return;
+        }
+        // A page filtered on the server is widened by submitting a changed query.
+        var serverQuery = filter.dataset.q || "";
+        if (event.key === "Enter" && serverQuery !== "" && filter.value.trim() !== serverQuery) {
+          filter.form.submit();
+          return;
+        }
+        if (!selected) {
+          select(visibleTickets()[0]);
+        }
+        filter.blur();
+      }
+      return;
+    }
+    if (tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable) {
       return;
     }
 
-    if (event.key === "/" && !inFilter) {
-      event.preventDefault();
-      filter.focus();
-      filter.select();
-    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === "Enter" && selected && (inFilter || tag === "body" || target.matches("[data-card]"))) {
-      // On a focused button or link, Enter keeps its own meaning.
-      event.preventDefault();
-      copyFromSelected(event.shiftKey);
-    } else if (event.key === "Escape") {
-      if (inFilter && filter.value) {
-        filter.value = "";
-        applyFilter();
-      } else {
+    switch (event.key) {
+      case "/":
+        event.preventDefault();
+        filter.focus();
+        filter.select();
+        break;
+      case "j":
+        event.preventDefault();
+        move(1);
+        break;
+      case "k":
+        event.preventDefault();
+        move(-1);
+        break;
+      case "c":
+        event.preventDefault();
+        pressInSelected("[data-copy-passphrase]");
+        break;
+      case "u":
+        event.preventDefault();
+        pressInSelected("[data-copy-text]");
+        break;
+      case "e":
+        event.preventDefault();
+        pressInSelected(".ticket-main, a[href^='/accounts/']");
+        break;
+      case "Escape":
         select(null);
-      }
+        break;
     }
   });
 
@@ -431,9 +546,9 @@
     });
   }
 
-  // A page the server already filtered (which also matches notes) keeps its
-  // results; the first one is ready for Enter.
-  if (filter.value.trim()) {
+  // The first pass starts selected, so c and u work straight away; a page
+  // the server already filtered (which also matches notes) keeps its results.
+  if (hasKeyboard || filter.value.trim()) {
     select(visibleTickets()[0]);
   }
 })();

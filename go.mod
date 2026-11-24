@@ -5,6 +5,7 @@ go 1.26.11
 require (
 	github.com/Elagoht/collage v1.0.1
 	github.com/Elagoht/collage-accesslog v0.3.0
+	github.com/Elagoht/collage-client v0.2.0
 	github.com/Elagoht/collage-compress v0.2.2
 	github.com/Elagoht/collage-fail2ban v0.3.0
 	github.com/Elagoht/collage-flash v0.3.1

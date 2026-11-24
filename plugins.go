@@ -20,6 +20,7 @@ import (
 	session "github.com/Elagoht/collage-session"
 	validate "github.com/Elagoht/collage-validate"
 
+	client "github.com/Elagoht/collage-client"
 	"passenger-go/internal/config"
 	vaultsession "passenger-go/internal/session"
 	"passenger-go/internal/store"
@@ -83,6 +84,7 @@ func plugins(st *store.Store, bans *fail2ban.Plugin) []collage.Plugin {
 			// call {{fieldValue}} for it.
 			NoRefill: []string{"code", "recovery", "current", "confirm"},
 		}),
+		client.New(),
 	}
 }
 
