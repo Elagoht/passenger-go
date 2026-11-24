@@ -2,8 +2,6 @@ package web
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
@@ -17,103 +15,6 @@ import (
 )
 
 var fastKDF = vault.KDFParams{Alg: "argon2id", T: 1, M: 1024, P: 1}
-
-func TestSafeNext(t *testing.T) {
-	for raw, want := range map[string]string{
-		"/accounts/1?x=1":  "/accounts/1?x=1",
-		"/":                "/",
-		"//evil.com":       "/",
-		"/\\evil.com":      "/",
-		"https://evil.com": "/",
-		"/%2F%2Fevil.com":  "/",
-		"/%5Cevil.com":     "/",
-		"/a\\b":            "/",
-		"":                 "/",
-		"accounts":         "/",
-		"/%zz":             "/",
-		"/\t/evil.com":     "/",
-		"/%09/evil.com":    "/",
-		"/%0A/evil.com":    "/",
-	} {
-		if got := SafeNext(raw); got != want {
-			t.Errorf("SafeNext(%q) = %q, want %q", raw, got, want)
-		}
-	}
-}
-
-func TestSecurityHeaders(t *testing.T) {
-	const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
-		"frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
-	// The inner handler sets its own Cache-Control, as collage does for guarded
-	// pages and static files; ours must still win.
-	h := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "private, no-cache")
-		w.Write([]byte("ok"))
-	}))
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
-	for name, want := range map[string]string{
-		"Content-Security-Policy": csp,
-		"Referrer-Policy":         "no-referrer",
-		"Cache-Control":           "no-store",
-		"X-Content-Type-Options":  "nosniff",
-	} {
-		if got := rec.Header().Get(name); got != want {
-			t.Errorf("%s = %q, want %q", name, got, want)
-		}
-	}
-}
-
-func TestSecurityHeadersLeaveStaticCacheable(t *testing.T) {
-	h := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		w.Write([]byte("body{}"))
-	}))
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest("GET", "/static/app.css", nil))
-	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
-		t.Errorf("Cache-Control = %q, want the static handler's", got)
-	}
-	for name, want := range map[string]string{
-		"Content-Security-Policy": ContentSecurityPolicy,
-		"Referrer-Policy":         "no-referrer",
-		"X-Content-Type-Options":  "nosniff",
-	} {
-		if got := rec.Header().Get(name); got != want {
-			t.Errorf("%s = %q, want %q", name, got, want)
-		}
-	}
-}
-
-// A handler that panics before writing still leaves the headers for whatever
-// recovers the panic outside our chain and writes the error page.
-func TestSecurityHeadersSurviveAPanic(t *testing.T) {
-	h := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		panic("boom")
-	}))
-	recoverer := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if recover() != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		}()
-		h.ServeHTTP(w, r)
-	})
-	rec := httptest.NewRecorder()
-	recoverer.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("status = %d", rec.Code)
-	}
-	for name, want := range map[string]string{
-		"Content-Security-Policy": ContentSecurityPolicy,
-		"Cache-Control":           "no-store",
-		"X-Content-Type-Options":  "nosniff",
-	} {
-		if got := rec.Header().Get(name); got != want {
-			t.Errorf("%s = %q, want %q", name, got, want)
-		}
-	}
-}
 
 func newDeps(t *testing.T) *Deps {
 	t.Helper()
@@ -150,79 +51,6 @@ func initVault(t *testing.T, d *Deps) vault.DEK {
 		t.Fatal(err)
 	}
 	return dek
-}
-
-// runGuard sends a request through the session middleware (which sets the
-// session and the stale-cookie flag) and returns the guard's decision.
-func runGuard(t *testing.T, d *Deps, g collage.GuardFunc, target, cookie string) *collage.GuardDecision {
-	t.Helper()
-	var dec *collage.GuardDecision
-	var gerr error
-	h := d.Sessions.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dec, gerr = g(r.Context(), r)
-	}))
-	r := httptest.NewRequest("GET", target, nil)
-	if cookie != "" {
-		r.AddCookie(&http.Cookie{Name: session.CookieName, Value: cookie})
-	}
-	h.ServeHTTP(httptest.NewRecorder(), r)
-	if gerr != nil {
-		t.Fatalf("guard error: %v", gerr)
-	}
-	return dec
-}
-
-func wantRedirect(t *testing.T, dec *collage.GuardDecision, loc string) {
-	t.Helper()
-	if dec == nil {
-		t.Fatalf("decision = nil (allowed), want 303 %s", loc)
-	}
-	if dec.Status != http.StatusSeeOther || dec.Location != loc {
-		t.Fatalf("decision = %d %q, want 303 %q", dec.Status, dec.Location, loc)
-	}
-}
-
-func TestRequireSession(t *testing.T) {
-	d := newDeps(t)
-	wantRedirect(t, runGuard(t, d, d.RequireSession, "/accounts/1", ""), "/setup")
-
-	dek := initVault(t, d)
-	wantRedirect(t, runGuard(t, d, d.RequireSession, "/accounts/1", ""), "/login?next=%2Faccounts%2F1")
-	wantRedirect(t, runGuard(t, d, d.RequireSession, "/accounts/1?q=a%20b", ""), "/login?next=%2Faccounts%2F1%3Fq%3Da%2520b")
-
-	wantRedirect(t, runGuard(t, d, d.RequireSession, "/accounts/1", "stale"), "/login?next=%2Faccounts%2F1")
-	wantRedirect(t, runGuard(t, d, d.RequireSession, "/", "stale"), "/login")
-
-	s, err := d.Sessions.Create(dek)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dec := runGuard(t, d, d.RequireSession, "/accounts/1", s.Token); dec != nil {
-		t.Fatalf("valid session decision = %+v, want allowed", dec)
-	}
-}
-
-func TestRequireGuest(t *testing.T) {
-	d := newDeps(t)
-	wantRedirect(t, runGuard(t, d, d.RequireGuest, "/login", ""), "/setup")
-	dek := initVault(t, d)
-	if dec := runGuard(t, d, d.RequireGuest, "/login", ""); dec != nil {
-		t.Fatalf("guest decision = %+v, want allowed", dec)
-	}
-	if dec := runGuard(t, d, d.RequireGuest, "/login", "stale"); dec != nil {
-		t.Fatalf("stale cookie decision = %+v, want allowed", dec)
-	}
-	s, _ := d.Sessions.Create(dek)
-	wantRedirect(t, runGuard(t, d, d.RequireGuest, "/login", s.Token), "/")
-}
-
-func TestRequireUninitialized(t *testing.T) {
-	d := newDeps(t)
-	if dec := runGuard(t, d, d.RequireUninitialized, "/setup", ""); dec != nil {
-		t.Fatalf("uninitialized decision = %+v, want allowed", dec)
-	}
-	initVault(t, d)
-	wantRedirect(t, runGuard(t, d, d.RequireUninitialized, "/setup", ""), "/login")
 }
 
 func TestSessionFromNil(t *testing.T) {

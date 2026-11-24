@@ -1,0 +1,63 @@
+package fragments
+
+import (
+	"context"
+
+	"github.com/Elagoht/collage/pkg/collage"
+)
+
+type importView struct {
+	Result *ImportResult
+}
+
+// Import is the CSV import form and, once submitted, its outcome.
+func Import() *collage.Fragment {
+	return collage.NewInlineFragment("import", importBlock).
+		WithTitle("Import - Passenger").
+		WithData(collage.Load(func(_ context.Context, rc *collage.RenderContext) (importView, error) {
+			var v importView
+			if res, ok := Imported.Get(rc); ok {
+				v.Result = &res
+			}
+			return v, nil
+		})).
+		Build()
+}
+
+const importBlock collage.InlineHTML = `<div class="page-head">
+  <a class="back" href="/">All accounts</a>
+  <h1>Import</h1>
+  <p>Bring accounts over from a CSV exported by Firefox, a Chromium browser (Chrome, Edge, Brave) or Passenger. Accounts you already have are left as they are.</p>
+</div>
+
+{{with .Result}}
+<section class="panel stack">
+  <h2>{{.Imported}} {{if eq .Imported 1}}account{{else}}accounts{{end}} imported</h2>
+  {{if .Failed}}
+  <p>{{len .Failed}} failed:</p>
+  <table class="table">
+    <thead>
+      <tr><th scope="col">Site</th><th scope="col">Username</th><th scope="col">Reason</th></tr>
+    </thead>
+    <tbody>
+      {{range .Failed}}
+      <tr><td>{{.Platform}}</td><td>{{.Identifier}}</td><td>{{.Reason}}</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+  <a class="button button-primary" href="{{pageURL "accounts"}}">Go to accounts</a>
+</section>
+{{end}}
+
+<form method="post" action="{{pageURL "import"}}" enctype="multipart/form-data" class="panel stack">
+  {{csrfToken}}
+  <label class="field dropzone">
+    <span>CSV file</span>
+    <input required type="file" name="file" accept=".csv,text/csv">
+  </label>
+
+  {{with fieldError "file"}}<p class="alert alert-error" role="alert">{{.}}</p>{{end}}
+
+  <button type="submit" class="button button-primary">Import accounts</button>
+</form>`

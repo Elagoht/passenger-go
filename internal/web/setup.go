@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/Elagoht/collage/pkg/collage"
 
-	"passenger-go/internal/session"
 	"passenger-go/internal/store"
 	"passenger-go/internal/vault"
 )
@@ -111,19 +109,26 @@ func (p *PendingSetup) clearLocked() {
 	p.token, p.row, p.recovery, p.created = "", store.VaultRow{}, "", time.Time{}
 }
 
-// PendingCookie is the cookie carrying a pending setup's token: the session
-// cookie under another name.
+// PendingCookie is the cookie carrying a pending setup's token, for the
+// browser's session (validity is server-side): HttpOnly, SameSite=Strict,
+// Path=/, Secure over TLS. It is not the session cookie, which the
+// elagoht/session plugin writes: a pending setup is not signed in.
 func PendingCookie(r *http.Request, token string) *http.Cookie {
-	c := session.Cookie(r, token)
-	c.Name = PendingCookieName
-	return c
+	return &http.Cookie{
+		Name:     PendingCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   collage.IsHTTPS(r),
+	}
 }
 
 // ClearPendingCookie is the pending-setup cookie that tells the browser to
 // drop it.
 func ClearPendingCookie(r *http.Request) *http.Cookie {
-	c := session.ExpiredCookie(r)
-	c.Name = PendingCookieName
+	c := PendingCookie(r, "")
+	c.MaxAge = -1
 	return c
 }
 
@@ -136,17 +141,10 @@ func PendingToken(r *http.Request) string {
 	return c.Value
 }
 
-// RequirePendingSetup lets through requests while no vault exists and r
-// carries the token of a live pending setup; without one it sends the reader
-// back to /setup.
-func (d *Deps) RequirePendingSetup(ctx context.Context, r *http.Request) (*collage.GuardDecision, error) {
-	if dec, err := d.RequireUninitialized(ctx, r); dec != nil || err != nil {
-		return dec, err
-	}
+// HasPendingSetup reports whether r carries the token of a live pending
+// setup.
+func (d *Deps) HasPendingSetup(r *http.Request) bool {
 	_, _, dek, ok := d.Pending.Get(PendingToken(r))
 	dek.Wipe()
-	if !ok {
-		return seeOther(pathSetup), nil
-	}
-	return nil, nil
+	return ok
 }

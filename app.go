@@ -55,6 +55,7 @@ func buildApp(env collage.Env) (*collage.App, *web.Deps, error) {
 	}
 	deps := &web.Deps{
 		Store:     st,
+		Bans:      newBans(),
 		Sessions:  session.NewManager(cfg.SessionIdle, cfg.SessionMax, now),
 		Limiter:   ratelimit.New(now),
 		KDF:       kdf,
@@ -81,6 +82,10 @@ func buildApp(env collage.Env) (*collage.App, *web.Deps, error) {
 }
 
 func wire(env collage.Env, cfg config.Config, deps *web.Deps) (*collage.App, error) {
+	pluginConfig, err := env.PluginConfig(files)
+	if err != nil {
+		return nil, err
+	}
 	app, err := collage.New(&collage.Config{
 		DevMode: env.Dev,
 		Server: collage.ServerConfig{
@@ -93,8 +98,10 @@ func wire(env collage.Env, cfg config.Config, deps *web.Deps) (*collage.App, err
 			Root:      "templates",
 			Extension: ".html",
 		},
-		Cache:    collage.CacheConfig{Enabled: false},
-		Security: collage.SecurityConfig{CSRFKey: cfg.CSRFKey},
+		Cache:        collage.CacheConfig{Enabled: false},
+		Security:     collage.SecurityConfig{CSRFKey: cfg.CSRFKey},
+		PluginConfig: pluginConfig,
+		Plugins:      plugins(deps.Store, deps.Bans),
 	})
 	if err != nil {
 		return nil, err
@@ -103,13 +110,7 @@ func wire(env collage.Env, cfg config.Config, deps *web.Deps) (*collage.App, err
 	if err := app.RegisterPlugin(&lifecycle{deps: deps}); err != nil {
 		return nil, err
 	}
-	if err := app.Use(web.SecurityHeaders); err != nil {
-		return nil, err
-	}
-	if err := app.Use(deps.Sessions.Middleware); err != nil {
-		return nil, err
-	}
-	if err := register(app, deps); err != nil {
+	if err := register(app, deps, newSession(cfg)); err != nil {
 		return nil, err
 	}
 	return app, app.Mount("/static/", env.Static(files, "static"))

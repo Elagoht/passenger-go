@@ -4,11 +4,14 @@ import (
 	"context"
 	"net/http"
 
+	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
 	"passenger-go/internal/store"
 	"passenger-go/internal/vault"
 	"passenger-go/internal/web"
+	"passenger-go/utils"
+	"passenger-go/validations"
 )
 
 // Setup answers the setup form: with the right setup code and an acceptable
@@ -21,20 +24,23 @@ func Setup(d *web.Deps) *collage.Action {
 		Build()
 }
 
+// setupHandler checks the passphrase first (a refusal there spends no
+// attempt), then the code behind the backoff.
 func setupHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
-		pass := r.PostFormValue("passphrase")
-		if msg := web.CheckNewPassphrase(pass, r.PostFormValue("confirm")); msg != "" {
-			return refuse(rc, http.StatusUnprocessableEntity, msg), nil
+		v := validate.Form(rc)
+		validations.Setup(v)
+		if !v.Valid() {
+			return validate.Refuse(rc, v, rc.Page), nil
 		}
 		if msg, ok, err := d.Throttle(r); err != nil {
 			return nil, err
 		} else if !ok {
-			return throttled(rc, msg), nil
+			return utils.Throttled(rc, v, "code", msg), nil
 		}
-		if !d.SetupCode.Check(r.PostFormValue("code")) {
-			return refuse(rc, http.StatusUnprocessableEntity, "Wrong setup code."), nil
+		if !d.SetupCode.Check(v.Value("code")) {
+			return utils.Refuse(rc, v, "code", "Wrong setup code."), nil
 		}
 		d.AttemptSucceeded(r)
 
@@ -47,6 +53,7 @@ func setupHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if err != nil {
 			return nil, err
 		}
+		pass := v.Value("passphrase")
 		passWrap, err := web.Wrap(ctx, pass, dek, d.KDF, vault.AADPass)
 		if err != nil {
 			return nil, err

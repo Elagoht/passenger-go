@@ -5,6 +5,10 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
+	"time"
+
 	"github.com/Elagoht/collage/pkg/collage"
 
 	accesslog "github.com/Elagoht/collage-accesslog"
@@ -16,20 +20,109 @@ import (
 	secure "github.com/Elagoht/collage-secure"
 	session "github.com/Elagoht/collage-session"
 	validate "github.com/Elagoht/collage-validate"
+
+	"passenger-go/internal/config"
+	"passenger-go/internal/store"
+	"passenger-go/internal/web"
 )
 
+// contentSecurityPolicy is sent on every response: no inline scripts or
+// styles, nothing from other origins. In development elagoht/secure sends it
+// as Content-Security-Policy-Report-Only, so collage's live reload still runs.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; " +
+	"img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+
+// secretForms are the paths of the forms that check a guessed secret: the
+// passphrase, the recovery key or the setup code.
+var secretForms = []string{"/login", "/recover", "/setup", "/export", "/settings"}
+
 // plugins are the application's plugins, in order: the first is the outermost
-// middleware. Their settings are in plugins-config.json.
-func plugins() []collage.Plugin {
-	return []collage.Plugin{
-		health.New(health.Options{}),
-		fail2ban.New(fail2ban.Options{}),
-		compress.New(compress.Options{}),
-		accesslog.New(accesslog.Options{}),
-		secure.New(secure.Options{}),
-		ratelimit.New(ratelimit.Options{}),
-		session.New(session.Options{}),
-		flash.New(flash.Options{}),
-		validate.New(validate.Options{}),
+// middleware. Their settings are in plugins-config.json; those that come from
+// the environment or from the application are given here. elagoht/session is
+// not in the list: routes.go registers it between the middleware that must be
+// outside it and the middleware that reads it (see newSession).
+func plugins(st *store.Store, bans *fail2ban.Plugin) []collage.Plugin {
+	ready := health.New(health.Options{})
+	ready.Check("db", func(ctx context.Context) error {
+		_, err := st.Initialized(ctx)
+		return err
+	})
+	limits := make([]ratelimit.Rule, 0, len(secretForms))
+	for _, prefix := range secretForms {
+		// Ten posts at once, then one every ten seconds, per client and per
+		// form. It limits requests; internal/ratelimit backs off on failures.
+		limits = append(limits, ratelimit.Rule{PathPrefix: prefix, Rate: 0.1, Burst: 10})
 	}
+	return []collage.Plugin{
+		// First, so it logs every request, a ban's 403 included.
+		accesslog.New(accesslog.Options{}),
+		ready,
+		bans,
+		compress.New(compress.Options{
+			// Every vault page is no-store and many reflect input next to
+			// secrets (BREACH): only the static files are compressed.
+			SkipPrivate: true,
+		}),
+		secure.New(secure.Options{
+			CSP:            contentSecurityPolicy,
+			ReferrerPolicy: "no-referrer",
+			FrameOptions:   "DENY",
+		}),
+		ratelimit.New(ratelimit.Options{Rules: limits}),
+		flash.New(flash.Options{
+			Cookie: "passenger_flash",
+			// A message lives across one redirect, so a key per process loses
+			// nothing worth keeping.
+			Key: randomKey(),
+		}),
+		validate.New(validate.Options{
+			// Never typed back into a form: the setup code, the recovery key
+			// and the master passphrase fields. "passphrase" is not listed,
+			// since the account form types an account's passphrase back; the
+			// forms that ask for the master passphrase under that name never
+			// call {{fieldValue}} for it.
+			NoRefill: []string{"code", "recovery", "current", "confirm"},
+		}),
+	}
+}
+
+// newBans is elagoht/fail2ban: probe and not-found bans as it comes, and the
+// jail web.Throttle strikes on every secret guess. Its limit is far above the
+// backoff's, so it only bans a client that keeps guessing for an hour.
+func newBans() *fail2ban.Plugin {
+	return fail2ban.New(fail2ban.Options{
+		Jails: map[string]fail2ban.Jail{
+			web.SecretJail: {
+				MaxRetry: 30,
+				FindTime: collage.Duration(time.Hour),
+				BanTime:  collage.Duration(time.Hour),
+			},
+		},
+	})
+}
+
+// newSession is elagoht/session, the half of the hybrid session that owns the
+// cookie: its lifetime (SESSION_IDLE without a request, SESSION_MAX in all,
+// the limits internal/session keeps for the DEK), Regenerate on sign-in and
+// the guards. The cookie holds only an opaque handle, encrypted so the reader
+// cannot read even that.
+//
+// Its key is made per process: a restart wipes every DEK, so a cookie that
+// outlived it would open nothing anyway.
+func newSession(cfg config.Config) *session.Plugin {
+	return session.New(session.Options{
+		Key:         randomKey(),
+		Encrypt:     true,
+		Cookie:      "passenger_session",
+		SameSite:    "strict",
+		IdleTimeout: collage.Duration(cfg.SessionIdle),
+		MaxAge:      collage.Duration(cfg.SessionMax),
+	})
+}
+
+// randomKey is 32 random bytes, for a key that need not survive a restart.
+func randomKey() []byte {
+	key := make([]byte, 32)
+	_, _ = rand.Read(key) // never fails: crypto/rand aborts the program instead
+	return key
 }

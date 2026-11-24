@@ -17,7 +17,7 @@ type deleteView struct {
 // Delete asks for confirmation before an account is removed; the POST to the
 // same URL deletes. An unknown id is a 404.
 func Delete(d *web.Deps) *collage.Fragment {
-	return collage.NewFragment("account-delete", "pages/accounts/delete.html").
+	return collage.NewInlineFragment("account-delete", deleteBlock).
 		WithTitle("Delete account - Passenger").
 		Required().
 		WithData(collage.Load(func(ctx context.Context, rc *collage.RenderContext) (deleteView, error) {
@@ -29,3 +29,13 @@ func Delete(d *web.Deps) *collage.Fragment {
 		})).
 		Build()
 }
+
+const deleteBlock collage.InlineHTML = `<section class="confirm">
+  <h1>Delete {{.Platform}}?</h1>
+  <p>The account for <strong>{{.Identifier}}</strong> and its password are removed from the vault. This cannot be undone.</p>
+  <form method="post" action="{{pageURL "account-delete" "id" .ID}}" class="actions">
+    {{csrfToken}}
+    <button type="submit" class="button button-danger">Delete account</button>
+    <a class="button button-quiet" href="{{pageURL "account" "id" .ID}}">Keep it</a>
+  </form>
+</section>`

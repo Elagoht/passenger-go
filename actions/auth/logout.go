@@ -4,9 +4,10 @@ import (
 	"context"
 	"net/http"
 
+	session "github.com/Elagoht/collage-session"
 	"github.com/Elagoht/collage/pkg/collage"
 
-	"passenger-go/internal/session"
+	"passenger-go/guards"
 	"passenger-go/internal/web"
 )
 
@@ -16,17 +17,18 @@ func Logout(d *web.Deps) *collage.Action {
 	return collage.NewAction("logout").
 		WithPath("en", "/logout").
 		WithMethods(http.MethodPost).
-		WithGuard(d.RequireSession).
-		WithHandler(func(_ context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
-			if s := web.SessionFrom(rc); s != nil {
-				d.Sessions.Delete(s.Token)
-			}
-			res, err := collage.SeeOtherPage(rc, "login", nil)
-			if err != nil {
-				return nil, err
-			}
-			res.Header = web.CookieHeader(session.ExpiredCookie(rc.Request))
-			return res, nil
-		}).
+		WithGuard(guards.SignedIn(d)).
+		WithHandler(logoutHandler(d)).
 		Build()
+}
+
+// logoutHandler drops the handle's DEK and the cookie, and goes to login.
+func logoutHandler(d *web.Deps) collage.ActionHandlerFunc {
+	return func(_ context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
+		if s := web.SessionFrom(rc); s != nil {
+			d.Sessions.Delete(s.Handle)
+		}
+		session.Get(rc).Clear()
+		return collage.SeeOtherPage(rc, "login", nil)
+	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/Elagoht/collage/pkg/collage"
 
+	"passenger-go/guards"
 	"passenger-go/internal/store"
 	"passenger-go/internal/web"
 )
@@ -23,22 +24,28 @@ func Passphrase(d *web.Deps) *collage.Action {
 	return collage.NewAction("account-passphrase").
 		WithPath("en", "/accounts/{id}/passphrase").
 		WithMethods(http.MethodPost).
-		WithGuard(d.RequireSession).
-		WithHandler(func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
-			id := rc.Param("id")
-			s, err := web.RequireSessionFrom(rc)
-			if err != nil {
-				return nil, err
-			}
-			defer s.DEK.Wipe()
-			a, err := d.Store.GetAccount(ctx, s.DEK, id)
-			if errors.Is(err, store.ErrNotFound) {
-				return nil, fmt.Errorf("account %q: %w", id, collage.ErrNotFound)
-			}
-			if err != nil {
-				return nil, err
-			}
-			return collage.JSON(http.StatusOK, passphraseResponse{Passphrase: a.Passphrase})
-		}).
+		WithGuard(guards.SignedIn(d)).
+		WithHandler(passphraseHandler(d)).
 		Build()
+}
+
+// passphraseHandler decrypts the account and answers with its passphrase; an
+// unknown one is a 404.
+func passphraseHandler(d *web.Deps) collage.ActionHandlerFunc {
+	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
+		id := rc.Param("id")
+		s, err := web.RequireSessionFrom(rc)
+		if err != nil {
+			return nil, err
+		}
+		defer s.DEK.Wipe()
+		a, err := d.Store.GetAccount(ctx, s.DEK, id)
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, fmt.Errorf("account %q: %w", id, collage.ErrNotFound)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return collage.JSON(http.StatusOK, passphraseResponse{Passphrase: a.Passphrase})
+	}
 }

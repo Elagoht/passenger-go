@@ -42,6 +42,7 @@
   </header>
 
   <main id="content">
+    {{range flashes}}<p class="alert alert-{{.Kind}}" role="status">{{.Text}}</p>{{end}}
     {{slot "content"}}
   </main>
 

@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/Elagoht/collage/pkg/collage"
+	"github.com/Elagoht/collage/pkg/collagetest"
 
 	"passenger-go/internal/session"
 	"passenger-go/internal/store"
 	"passenger-go/internal/vault"
-	"passenger-go/internal/web"
 )
 
 func TestNewAppRequiresCSRFKey(t *testing.T) {
@@ -29,13 +29,13 @@ func TestUninitializedAppRedirectsToSetup(t *testing.T) {
 	if loc := res.Location(); loc != "/setup" {
 		t.Fatalf("Location = %q, want /setup", loc)
 	}
-	if got := res.Header.Get("Content-Security-Policy"); got != web.ContentSecurityPolicy {
+	if got := res.Header.Get("Content-Security-Policy"); got != contentSecurityPolicy {
 		t.Errorf("CSP = %q", got)
 	}
 }
 
-// createVaultAndSession writes a vault row directly and opens a session on it,
-// returning the session token.
+// createVaultAndSession writes a vault row directly and opens a session on it
+// in the manager alone (no cookie carries it).
 func createVaultAndSession(t *testing.T, env *testEnv) *session.Session {
 	t.Helper()
 	dek, err := vault.NewDEK()
@@ -60,22 +60,45 @@ func createVaultAndSession(t *testing.T, env *testEnv) *session.Session {
 	return s
 }
 
+// sessionCookieValue is the value res sets the session cookie to; the test
+// fails when it sets none.
+func sessionCookieValue(t *testing.T, res *collagetest.Response) string {
+	t.Helper()
+	for _, c := range (&http.Response{Header: res.Header}).Cookies() {
+		if c.Name == session.CookieName && c.Value != "" {
+			return c.Value
+		}
+	}
+	t.Fatalf("%s %s set no session cookie", res.Method, res.URL)
+	return ""
+}
+
+// sessionSetCookie is the Set-Cookie line res sets the session cookie with, or
+// "".
+func sessionSetCookie(res *collagetest.Response) string {
+	for _, line := range res.Header.Values("Set-Cookie") {
+		if strings.HasPrefix(line, session.CookieName+"=") {
+			return line
+		}
+	}
+	return ""
+}
+
 func TestAppLayout(t *testing.T) {
 	c, env := newTestApp(t)
 	if env.Deps.KDF != testKDF {
 		t.Fatalf("KDF = %+v, want the test override", env.Deps.KDF)
 	}
-	s := createVaultAndSession(t, env)
+	setUp(t, c, env, testPass)
 
 	// No cookie: to login. The home page needs no next.
-	if loc := c.Get("/").WantStatus(http.StatusSeeOther).Location(); loc != "/login" {
+	guest := collagetest.New(t, env.App.Handler())
+	if loc := guest.Get("/").WantStatus(http.StatusSeeOther).Location(); loc != "/login" {
 		t.Fatalf("Location = %q, want /login", loc)
 	}
 
 	env.Clock.Advance(5 * time.Minute) // the page view slides the session
-	req := c.Request(http.MethodGet, "/", nil)
-	req.AddCookie(&http.Cookie{Name: session.CookieName, Value: s.Token})
-	res := c.Do(req).WantStatus(http.StatusOK)
+	res := c.Get("/").WantStatus(http.StatusOK)
 
 	wantExp := env.Clock.Now().Add(15 * time.Minute).UnixMilli()
 	for _, want := range []string{
@@ -99,10 +122,11 @@ func TestAppLayout(t *testing.T) {
 		t.Error("inline style in layout")
 	}
 	for name, want := range map[string]string{
-		"Content-Security-Policy": web.ContentSecurityPolicy,
+		"Content-Security-Policy": contentSecurityPolicy,
 		"Cache-Control":           "no-store",
 		"Referrer-Policy":         "no-referrer",
 		"X-Content-Type-Options":  "nosniff",
+		"X-Frame-Options":         "DENY",
 	} {
 		if got := res.Header.Get(name); got != want {
 			t.Errorf("%s = %q, want %q", name, got, want)
@@ -110,17 +134,18 @@ func TestAppLayout(t *testing.T) {
 	}
 }
 
+// A static file is not the reader's activity: it neither slides the DEK's idle
+// window nor refreshes the session cookie.
 func TestStaticDoesNotTouchSession(t *testing.T) {
-	c, env := newTestApp(t)
-	s := createVaultAndSession(t, env)
+	c, env := loggedIn(t)
 	env.Clock.Advance(10 * time.Minute)
-	req := c.Request(http.MethodGet, "/static/favicon.svg", nil)
-	req.AddCookie(&http.Cookie{Name: session.CookieName, Value: s.Token})
-	c.Do(req).WantStatus(http.StatusOK)
-	env.Clock.Advance(6 * time.Minute)
-	if _, ok := env.Deps.Sessions.Peek(s.Token); ok {
-		t.Fatal("a static request extended the session")
+	res := c.Get("/static/favicon.svg").WantStatus(http.StatusOK)
+	if got := sessionSetCookie(res); got != "" {
+		t.Fatalf("a static request refreshed the session cookie: %q", got)
 	}
+	env.Clock.Advance(6 * time.Minute)
+	c.Get("/session").WantStatus(http.StatusUnauthorized)
+	wantLocation(t, c.Get("/").WantStatus(http.StatusSeeOther), "/login")
 }
 
 func TestListenPort(t *testing.T) {
@@ -159,7 +184,7 @@ func TestStaticHeaders(t *testing.T) {
 		t.Errorf("Cache-Control = %q, want static files cacheable", cc)
 	}
 	for name, want := range map[string]string{
-		"Content-Security-Policy": web.ContentSecurityPolicy,
+		"Content-Security-Policy": contentSecurityPolicy,
 		"Referrer-Policy":         "no-referrer",
 		"X-Content-Type-Options":  "nosniff",
 	} {
@@ -175,7 +200,7 @@ func TestShutdownEndsSessions(t *testing.T) {
 	if err := env.App.Shutdown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := env.Deps.Sessions.Peek(s.Token); ok {
+	if _, ok := env.Deps.Sessions.Peek(s.Handle); ok {
 		t.Fatal("a session outlived the shutdown")
 	}
 }

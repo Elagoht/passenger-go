@@ -7,6 +7,7 @@ import (
 
 	"github.com/Elagoht/collage/pkg/collage"
 
+	"passenger-go/guards"
 	"passenger-go/internal/web"
 )
 
@@ -20,12 +21,13 @@ type appView struct {
 }
 
 // App is the shell of every page behind the vault: navigation, logout and the
-// session-expiry banner. It is guarded with RequireSession, so every page
-// wrapped in it, and every action on such a page, needs a live session.
+// session-expiry banner, and the flash messages an action left before
+// redirecting. It is guarded with guards.SignedIn, so every page wrapped in
+// it, and every action on such a page, needs a live session.
 func App(d *web.Deps) *collage.Fragment {
 	return collage.NewFragment("app-layout", "layouts/app.html").
 		WithTitle("Passenger").
-		WithGuard(d.RequireSession).
+		WithGuard(guards.SignedIn(d)).
 		WithData(collage.Load(func(_ context.Context, rc *collage.RenderContext) (appView, error) {
 			s := web.SessionFrom(rc)
 			if s == nil {

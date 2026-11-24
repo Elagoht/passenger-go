@@ -5,11 +5,14 @@ import (
 	"errors"
 	"net/http"
 
+	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
 	fragments "passenger-go/fragments/pages/auth"
 	"passenger-go/internal/vault"
 	"passenger-go/internal/web"
+	"passenger-go/utils"
+	"passenger-go/validations"
 )
 
 // Recover answers the recovery form: the recovery key unwraps the DEK, which
@@ -23,17 +26,20 @@ func Recover(d *web.Deps) *collage.Action {
 		Build()
 }
 
+// recoverHandler checks the new passphrase first, then the key behind the
+// backoff, all under the wrap mutex from reading the vault row on.
 func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
-		pass := r.PostFormValue("passphrase")
-		if msg := web.CheckNewPassphrase(pass, r.PostFormValue("confirm")); msg != "" {
-			return refuse(rc, http.StatusUnprocessableEntity, msg), nil
+		v := validate.Form(rc)
+		validations.Recover(v)
+		if !v.Valid() {
+			return validate.Refuse(rc, v, rc.Page), nil
 		}
 		if msg, ok, err := d.Throttle(r); err != nil {
 			return nil, err
 		} else if !ok {
-			return throttled(rc, msg), nil
+			return utils.Throttled(rc, v, "recovery", msg), nil
 		}
 		d.WrapMu.Lock()
 		defer d.WrapMu.Unlock()
@@ -41,10 +47,10 @@ func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if err != nil {
 			return nil, err
 		}
-		key := vault.NormalizeRecoveryKey(r.PostFormValue("recovery"))
+		key := vault.NormalizeRecoveryKey(v.Value("recovery"))
 		dek, err := web.Unwrap(ctx, key, row.Recovery, row.KDF, vault.AADRecovery)
 		if errors.Is(err, vault.ErrWrongSecret) {
-			return refuse(rc, http.StatusUnprocessableEntity, "Wrong recovery key."), nil
+			return utils.Refuse(rc, v, "recovery", "Wrong recovery key."), nil
 		}
 		if err != nil {
 			return nil, err
@@ -56,7 +62,7 @@ func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if err != nil {
 			return nil, err
 		}
-		passWrap, err := web.Wrap(ctx, pass, dek, row.KDF, vault.AADPass)
+		passWrap, err := web.Wrap(ctx, v.Value("passphrase"), dek, row.KDF, vault.AADPass)
 		if err != nil {
 			return nil, err
 		}

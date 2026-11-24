@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/Elagoht/collage/pkg/collagetest"
+
+	"passenger-go/internal/session"
 )
 
 // upload posts file as the import form's multipart "file" field.
@@ -80,6 +82,7 @@ func TestExport(t *testing.T) {
 	res := c.Submit(page, "/export", url.Values{"passphrase": {"wrong passphrase!"}}).WantStatus(http.StatusUnprocessableEntity)
 	wantBody(t, res, "Wrong passphrase.")
 	wantNoBody(t, res, "one-passphrase")
+	wantNoBody(t, res, "wrong passphrase!")
 
 	res = c.Submit(page, "/export", url.Values{"passphrase": {testPass}}).WantStatus(http.StatusOK)
 	if ct := res.Header.Get("Content-Type"); ct != "text/csv; charset=utf-8" {
@@ -114,19 +117,34 @@ func TestChangePassphrase(t *testing.T) {
 	second.Get("/").WantStatus(http.StatusOK)
 
 	page := owner.Get("/settings/passphrase").WantStatus(http.StatusOK)
+	// The owner's cookie before the change, to replay once it has.
+	before := sessionCookieValue(t, page)
 	values := func(cur, pass, confirm string) url.Values {
 		return url.Values{"current": {cur}, "passphrase": {pass}, "confirm": {confirm}}
 	}
-	wantBody(t, owner.Submit(page, "/settings/passphrase", values("wrong current!!", otherPass, otherPass)).
-		WantStatus(http.StatusUnprocessableEntity), "Wrong passphrase.")
+	res := owner.Submit(page, "/settings/passphrase", values("wrong current!!", otherPass, otherPass)).
+		WantStatus(http.StatusUnprocessableEntity)
+	wantBody(t, res, "Wrong passphrase.")
+	// Neither the current passphrase nor the new one is typed back.
+	wantNoBody(t, res, "wrong current!!")
+	wantNoBody(t, res, otherPass)
 	wantBody(t, owner.Submit(page, "/settings/passphrase", values(testPass, "short", "short")).
 		WantStatus(http.StatusUnprocessableEntity), "at least 12")
 	wantBody(t, owner.Submit(page, "/settings/passphrase", values(testPass, otherPass, testPass)).
 		WantStatus(http.StatusUnprocessableEntity), "do not match")
 
-	res := owner.Submit(page, "/settings/passphrase", values(testPass, otherPass, otherPass)).WantStatus(http.StatusSeeOther)
-	wantLocation(t, res, "/settings/passphrase?saved=1")
+	res = owner.Submit(page, "/settings/passphrase", values(testPass, otherPass, otherPass)).WantStatus(http.StatusSeeOther)
+	wantLocation(t, res, "/settings/passphrase")
+	// The flash message is shown once: after the redirect, not on a reload.
 	wantBody(t, owner.Follow(res).WantStatus(http.StatusOK), "Passphrase changed.")
+	wantNoBody(t, owner.Get("/settings/passphrase").WantStatus(http.StatusOK), "Passphrase changed.")
+
+	// The cookie from before the change holds the old handle, which the
+	// rotation revoked: replayed, it opens nothing.
+	replay := collagetest.New(t, env.App.Handler())
+	req := replay.Request(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: session.CookieName, Value: before})
+	wantLocation(t, replay.Do(req).WantStatus(http.StatusSeeOther), "/login")
 
 	// The rotated session still works; the other one ended.
 	wantBody(t, owner.Get("/").WantStatus(http.StatusOK), "GitHub")

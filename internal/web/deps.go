@@ -1,10 +1,13 @@
-// Package web holds what the collage pages and actions share: dependencies,
-// guards, security headers and form helpers.
+// Package web holds what the collage pages and actions share: the
+// application's services, the brute-force backoff, the Argon2 concurrency cap
+// and the pending setup.
 package web
 
 import (
 	"sync"
 	"time"
+
+	fail2ban "github.com/Elagoht/collage-fail2ban"
 
 	"passenger-go/internal/ratelimit"
 	"passenger-go/internal/session"
@@ -18,8 +21,11 @@ type Deps struct {
 	Store    *store.Store
 	Sessions *session.Manager
 	Limiter  *ratelimit.Limiter
-	KDF      vault.KDFParams
-	Now      func() time.Time
+	// Bans is the elagoht/fail2ban plugin; Throttle strikes its SecretJail. Nil
+	// in unit tests, where nothing is struck.
+	Bans *fail2ban.Plugin
+	KDF  vault.KDFParams
+	Now  func() time.Time
 
 	// SetupCode is asked for by /setup; Pending holds a setup awaiting its
 	// recovery-key confirmation.

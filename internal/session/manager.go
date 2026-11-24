@@ -1,4 +1,12 @@
 // Package session keeps unlocked vault sessions (and their DEK) in memory only.
+//
+// It is the server half of a hybrid session. The elagoht/session plugin owns
+// the browser's cookie (named CookieName), its lifetime and the guards; the
+// cookie holds nothing but a session's Handle, an opaque random string. The
+// Manager maps a handle to its DEK, with the same idle and absolute limits as
+// the cookie, and wipes the DEK when the session expires, is deleted or is
+// rotated. The DEK never leaves server memory: the plugin keeps its data in
+// the cookie, which is why it cannot hold the key itself.
 package session
 
 import (
@@ -6,21 +14,22 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"net/http"
 	"sync"
 	"time"
-
-	"github.com/Elagoht/collage/pkg/collage"
 
 	"passenger-go/internal/vault"
 )
 
+// CookieName is the name of the session cookie the elagoht/session plugin
+// writes.
 const CookieName = "passenger_session"
 
 // Session is a snapshot of a stored session. Values handed out by the Manager
 // are copies; the DEK inside a copy is not wiped when the stored session expires.
 type Session struct {
-	Token    string
+	// Handle is the session's opaque random name, the only thing the cookie
+	// holds.
+	Handle   string
 	DEK      vault.DEK
 	Created  time.Time
 	LastSeen time.Time
@@ -38,7 +47,7 @@ func NewManager(idle, max time.Duration, now func() time.Time) *Manager {
 	return &Manager{sessions: map[string]*Session{}, idle: idle, max: max, now: now}
 }
 
-func newToken() (string, error) {
+func newHandle() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
@@ -70,36 +79,36 @@ func (m *Manager) expiredLocked(s *Session) bool {
 	return m.now().After(m.expiresAt(s))
 }
 
-func (m *Manager) removeLocked(token string) {
-	if s, ok := m.sessions[token]; ok {
+func (m *Manager) removeLocked(handle string) {
+	if s, ok := m.sessions[handle]; ok {
 		s.DEK.Wipe()
-		delete(m.sessions, token)
+		delete(m.sessions, handle)
 	}
 }
 
 func (m *Manager) Create(dek vault.DEK) (*Session, error) {
-	token, err := newToken()
+	handle, err := newHandle()
 	if err != nil {
 		return nil, err
 	}
 	now := m.now()
-	s := &Session{Token: token, DEK: dek, Created: now, LastSeen: now}
+	s := &Session{Handle: handle, DEK: dek, Created: now, LastSeen: now}
 	m.mu.Lock()
-	m.sessions[token] = s
+	m.sessions[handle] = s
 	m.mu.Unlock()
 	cp := *s
 	return &cp, nil
 }
 
-func (m *Manager) lookup(token string, extend bool) (*Session, bool) {
+func (m *Manager) lookup(handle string, extend bool) (*Session, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s, ok := m.sessions[token]
+	s, ok := m.sessions[handle]
 	if !ok {
 		return nil, false
 	}
 	if m.expiredLocked(s) {
-		m.removeLocked(token)
+		m.removeLocked(handle)
 		return nil, false
 	}
 	if extend {
@@ -110,36 +119,36 @@ func (m *Manager) lookup(token string, extend bool) (*Session, bool) {
 }
 
 // Touch validates the session and slides its idle window.
-func (m *Manager) Touch(token string) (*Session, bool) { return m.lookup(token, true) }
+func (m *Manager) Touch(handle string) (*Session, bool) { return m.lookup(handle, true) }
 
 // Peek validates the session without extending it.
-func (m *Manager) Peek(token string) (*Session, bool) { return m.lookup(token, false) }
+func (m *Manager) Peek(handle string) (*Session, bool) { return m.lookup(handle, false) }
 
-func (m *Manager) Delete(token string) {
+func (m *Manager) Delete(handle string) {
 	m.mu.Lock()
-	m.removeLocked(token)
+	m.removeLocked(handle)
 	m.mu.Unlock()
 }
 
-// Rotate gives the session a new token (same DEK, same creation time) and
+// Rotate gives the session a new handle (same DEK, same creation time) and
 // deletes every other session.
-func (m *Manager) Rotate(token string) (*Session, error) {
-	newTok, err := newToken()
+func (m *Manager) Rotate(handle string) (*Session, error) {
+	fresh, err := newHandle()
 	if err != nil {
 		return nil, err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	old, ok := m.sessions[token]
+	old, ok := m.sessions[handle]
 	if !ok || m.expiredLocked(old) {
-		m.removeLocked(token)
-		return nil, errors.New("session: unknown or expired token")
+		m.removeLocked(handle)
+		return nil, errors.New("session: unknown or expired handle")
 	}
-	s := &Session{Token: newTok, DEK: old.DEK, Created: old.Created, LastSeen: m.now()}
+	s := &Session{Handle: fresh, DEK: old.DEK, Created: old.Created, LastSeen: m.now()}
 	for t := range m.sessions {
 		m.removeLocked(t)
 	}
-	m.sessions[newTok] = s
+	m.sessions[fresh] = s
 	cp := *s
 	return &cp, nil
 }
@@ -179,22 +188,23 @@ func (m *Manager) Start(ctx context.Context) {
 	}()
 }
 
-// Cookie is the session cookie for token (browser-session lifetime; validity
-// is server-side): HttpOnly, SameSite=Strict, Path=/, Secure over TLS.
-func Cookie(r *http.Request, token string) *http.Cookie {
-	return &http.Cookie{
-		Name:     CookieName,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-		Secure:   collage.IsHTTPS(r),
-	}
+type ctxKey struct{}
+
+// WithSession returns ctx carrying s, the request's copy of its session.
+func WithSession(ctx context.Context, s *Session) context.Context {
+	return context.WithValue(ctx, ctxKey{}, s)
 }
 
-// ExpiredCookie is the session cookie that tells the browser to drop it.
-func ExpiredCookie(r *http.Request) *http.Cookie {
-	c := Cookie(r, "")
-	c.MaxAge = -1
-	return c
+// FromContext returns the session WithSession put in ctx.
+func FromContext(ctx context.Context) (*Session, bool) {
+	s, ok := ctx.Value(ctxKey{}).(*Session)
+	return s, ok && s != nil
+}
+
+// Len is how many sessions the manager holds, expired ones not yet swept
+// included.
+func (m *Manager) Len() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.sessions)
 }

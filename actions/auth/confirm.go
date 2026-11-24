@@ -6,12 +6,13 @@ import (
 	"errors"
 	"net/http"
 
+	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
-	"passenger-go/internal/session"
 	"passenger-go/internal/store"
 	"passenger-go/internal/vault"
 	"passenger-go/internal/web"
+	"passenger-go/utils"
 )
 
 // Confirm answers the recovery-key confirmation: when the key typed back
@@ -24,6 +25,8 @@ func Confirm(d *web.Deps) *collage.Action {
 		Build()
 }
 
+// confirmHandler compares the typed key behind the backoff, then stores the
+// pending vault and signs the reader in.
 func confirmHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
@@ -32,14 +35,15 @@ func confirmHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if !ok { // expired between the guard and here
 			return collage.SeeOtherPage(rc, "setup", nil)
 		}
+		v := validate.Form(rc)
 		if msg, ok, err := d.Throttle(r); err != nil {
 			return nil, err
 		} else if !ok {
-			return throttled(rc, msg), nil
+			return utils.Throttled(rc, v, "recovery", msg), nil
 		}
-		typed := vault.NormalizeRecoveryKey(r.PostFormValue("recovery"))
+		typed := vault.NormalizeRecoveryKey(v.Value("recovery"))
 		if subtle.ConstantTimeCompare([]byte(typed), []byte(vault.NormalizeRecoveryKey(recovery))) != 1 {
-			return refuse(rc, http.StatusUnprocessableEntity,
+			return utils.Refuse(rc, v, "recovery",
 				"The recovery key does not match. Check what you wrote down and type it again."), nil
 		}
 		d.AttemptSucceeded(r)
@@ -57,13 +61,11 @@ func confirmHandler(d *web.Deps) collage.ActionHandlerFunc {
 			return nil, err
 		}
 		d.Pending.Clear()
-		s, err := d.Sessions.Create(dek)
-		if err != nil {
+		if err := signIn(rc, d, dek); err != nil {
 			return nil, err
 		}
-		s.DEK.Wipe() // our copy; the stored session keeps its own
 		res := collage.SeeOther("/")
-		res.Header = web.CookieHeader(session.Cookie(r, s.Token), clearPending)
+		res.Header = web.CookieHeader(clearPending)
 		return res, nil
 	}
 }

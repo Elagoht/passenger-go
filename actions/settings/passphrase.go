@@ -3,93 +3,76 @@ package actions
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
+	flash "github.com/Elagoht/collage-flash"
+	session "github.com/Elagoht/collage-session"
+	validate "github.com/Elagoht/collage-validate"
 	"github.com/Elagoht/collage/pkg/collage"
 
-	fragments "passenger-go/fragments/pages/settings"
-	"passenger-go/internal/session"
 	"passenger-go/internal/vault"
 	"passenger-go/internal/web"
+	"passenger-go/utils"
+	"passenger-go/validations"
 )
 
-func refuse(rc *collage.RenderContext, status int, msg string) *collage.ActionResult {
-	fragments.FormError.Set(rc, msg)
-	return &collage.ActionResult{Status: status, Page: rc.Page}
-}
-
-// unlock checks the current passphrase the way login does (throttled, in a KDF
-// slot) and returns the DEK it unwraps, which the caller must wipe, and the
-// vault's KDF parameters. When the passphrase is refused the DEK is zero and
-// the result is the answer to send. The caller holds d.WrapMu, so the row read
-// here is still the stored one when the caller writes its new wrap.
-func unlock(ctx context.Context, d *web.Deps, rc *collage.RenderContext) (vault.DEK, vault.KDFParams, *collage.ActionResult, error) {
-	r := rc.Request
-	if msg, ok, err := d.Throttle(r); err != nil {
-		return vault.DEK{}, vault.KDFParams{}, nil, err
-	} else if !ok {
-		return vault.DEK{}, vault.KDFParams{}, refuse(rc, http.StatusTooManyRequests, msg), nil
-	}
-	row, err := d.Store.Vault(ctx)
-	if err != nil {
-		return vault.DEK{}, vault.KDFParams{}, nil, err
-	}
-	dek, err := web.Unwrap(ctx, r.PostFormValue("current"), row.Pass, row.KDF, vault.AADPass)
-	if errors.Is(err, vault.ErrWrongSecret) {
-		return vault.DEK{}, vault.KDFParams{}, refuse(rc, http.StatusUnprocessableEntity, "Wrong passphrase."), nil
-	}
-	if err != nil {
-		return vault.DEK{}, vault.KDFParams{}, nil, err
-	}
-	d.AttemptSucceeded(r)
-	return dek, row.KDF, nil, nil
-}
-
 // Passphrase changes the master passphrase: the DEK is wrapped again under the
-// new one, every other session ends and this one gets a new token.
+// new one, every other session ends and this one gets a new handle.
 func Passphrase(d *web.Deps) *collage.Action {
 	return collage.NewAction("settings-passphrase").
 		WithMethods(http.MethodPost).
-		WithHandler(func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
-			r := rc.Request
-			pass := r.PostFormValue("passphrase")
-			if msg := web.CheckNewPassphrase(pass, r.PostFormValue("confirm")); msg != "" {
-				return refuse(rc, http.StatusUnprocessableEntity, msg), nil
-			}
-			s, err := web.RequireSessionFrom(rc)
-			if err != nil {
-				return nil, err
-			}
-			defer s.DEK.Wipe()
-
-			d.WrapMu.Lock()
-			defer d.WrapMu.Unlock()
-			dek, kdf, refused, err := unlock(ctx, d, rc)
-			if err != nil || refused != nil {
-				return refused, err
-			}
-			defer dek.Wipe()
-
-			wrapped, err := web.Wrap(ctx, pass, dek, kdf, vault.AADPass)
-			if err != nil {
-				return nil, err
-			}
-			if err := d.Store.UpdatePassWrap(ctx, wrapped); err != nil {
-				return nil, err
-			}
-			rotated, err := d.Sessions.Rotate(s.Token)
-			if err != nil {
-				// The passphrase changed: no session opened under the old one
-				// may survive.
-				d.Sessions.DeleteAll()
-				return nil, err
-			}
-			defer rotated.DEK.Wipe()
-
-			res := collage.SeeOther("/settings/passphrase?saved=1")
-			res.Header = web.CookieHeader(session.Cookie(r, rotated.Token))
-			return res, nil
-		}).
+		WithHandler(passphraseHandler(d)).
 		Build()
+}
+
+// passphraseHandler checks the new passphrase, then the current one behind
+// the backoff and under the wrap mutex, stores the new wrap, rotates the
+// session and comes back to the page with a flash message.
+func passphraseHandler(d *web.Deps) collage.ActionHandlerFunc {
+	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
+		v := validate.Form(rc)
+		validations.Passphrase(v)
+		if !v.Valid() {
+			return validate.Refuse(rc, v, rc.Page), nil
+		}
+		s, err := web.RequireSessionFrom(rc)
+		if err != nil {
+			return nil, err
+		}
+		defer s.DEK.Wipe()
+
+		d.WrapMu.Lock()
+		defer d.WrapMu.Unlock()
+		dek, kdf, refused, err := utils.Unlock(ctx, d, rc, v)
+		if err != nil || refused != nil {
+			return refused, err
+		}
+		defer dek.Wipe()
+
+		wrapped, err := web.Wrap(ctx, v.Value("passphrase"), dek, kdf, vault.AADPass)
+		if err != nil {
+			return nil, err
+		}
+		if err := d.Store.UpdatePassWrap(ctx, wrapped); err != nil {
+			return nil, err
+		}
+		rotated, err := d.Sessions.Rotate(s.Handle)
+		if err != nil {
+			// The passphrase changed: no session opened under the old one
+			// may survive.
+			d.Sessions.DeleteAll()
+			return nil, err
+		}
+		defer rotated.DEK.Wipe()
+		// The cookie keeps its id and creation time, as the manager keeps the
+		// session's: both still end at the same moment. Only the handle, the
+		// part that can be revoked, changes.
+		if err := session.Get(rc).Set(session.UserKey, rotated.Handle); err != nil {
+			d.Sessions.DeleteAll()
+			return nil, err
+		}
+
+		flash.Add(rc, flash.Success, "Passphrase changed.")
+		return collage.SeeOtherPage(rc, "settings-passphrase", nil)
+	}
 }

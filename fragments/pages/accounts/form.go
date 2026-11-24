@@ -1,3 +1,4 @@
+// Package fragments holds the content of the account pages.
 package fragments
 
 import (
@@ -11,6 +12,10 @@ import (
 	"passenger-go/internal/web"
 )
 
+// formView is the account form's data, shared by New and Detail: the stored
+// account, or nothing for a new one. A refused submission is typed back over
+// it by {{fieldValue}}, the account's passphrase included (only the master
+// passphrase and the recovery key are never echoed).
 type formView struct {
 	ID         string // empty for a new account
 	Platform   string
@@ -18,52 +23,57 @@ type formView struct {
 	Passphrase string
 	URL        string
 	Notes      string
-	Error      string
 }
 
-// New is the empty account form. Reachable only behind a session.
-func New() *collage.Fragment {
-	return collage.NewFragment("account-new", "pages/accounts/form.html").
-		WithTitle("New account - Passenger").
-		WithData(collage.Load(func(_ context.Context, rc *collage.RenderContext) (formView, error) {
-			return submittedView(rc, formView{}), nil
-		})).
-		Build()
-}
+const formBlock collage.InlineHTML = `<div class="page-head">
+  <a class="back" href="/">All accounts</a>
+  <h1>{{if .ID}}{{if .Platform}}{{.Platform}}{{else}}Account{{end}}{{else}}New account{{end}}</h1>
+</div>
 
-// Detail shows one account for editing, its passphrase masked. An unknown id
-// is a 404.
-func Detail(d *web.Deps) *collage.Fragment {
-	return collage.NewFragment("account-detail", "pages/accounts/form.html").
-		WithTitle("Account - Passenger").
-		Required().
-		WithData(collage.Load(func(ctx context.Context, rc *collage.RenderContext) (formView, error) {
-			id := rc.Param("id")
-			if _, refused := Submitted.Get(rc); refused {
-				// The action already found the account; show what was typed.
-				return submittedView(rc, formView{ID: id}), nil
-			}
-			a, err := load(ctx, d, rc, id)
-			if err != nil {
-				return formView{}, err
-			}
-			return formView{
-				ID: a.ID, Platform: a.Platform, Identifier: a.Identifier,
-				Passphrase: a.Passphrase, URL: a.URL, Notes: a.Notes,
-			}, nil
-		})).
-		Build()
-}
+<form class="account-form" method="post" action="{{if .ID}}{{pageURL "account" "id" .ID}}{{else}}{{pageURL "account-new"}}{{end}}" autocomplete="off" data-track>
+  {{csrfToken}}
 
-// submittedView overlays a refused submission, the account's passphrase
-// included, and its error on v.
-func submittedView(rc *collage.RenderContext, v formView) formView {
-	if f, ok := Submitted.Get(rc); ok {
-		v.Platform, v.Identifier, v.Passphrase, v.URL, v.Notes = f.Platform, f.Identifier, f.Passphrase, f.URL, f.Notes
-	}
-	v.Error = formError(rc)
-	return v
-}
+  <div class="fields">
+    <label class="field">
+      <span>Site or app</span>
+      <input required type="text" name="platform" value="{{fieldValue "platform" .Platform}}" placeholder="GitHub"{{if not .ID}} autofocus{{end}}>
+    </label>
+
+    <label class="field">
+      <span>Username or email</span>
+      <input required type="text" name="identifier" value="{{fieldValue "identifier" .Identifier}}" spellcheck="false">
+    </label>
+
+    <label class="field">
+      <span>Address</span>
+      <input type="text" inputmode="url" name="url" value="{{fieldValue "url" .URL}}" placeholder="github.com" spellcheck="false">
+    </label>
+
+    <label class="field">
+      <span>Notes</span>
+      <textarea name="notes" rows="4">{{fieldValue "notes" .Notes}}</textarea>
+    </label>
+  </div>
+
+  <div class="secret">
+    <label class="field" for="passphrase"><span>Password</span></label>
+    <input required type="password" id="passphrase" name="passphrase" value="{{fieldValue "passphrase" .Passphrase}}" autocomplete="new-password" spellcheck="false" class="secret-input">
+    <div class="secret-actions">
+      <button type="button" class="button" data-reveal="passphrase" hidden>Show</button>
+      <button type="button" class="button" data-copy-input="passphrase" data-name="Password" hidden>Copy</button>
+      <button type="button" class="button" data-generate-into="passphrase" hidden>Generate</button>
+    </div>
+    <p class="secret-meter" data-meter-for="passphrase" aria-live="polite"></p>
+  </div>
+
+  {{if hasErrors}}<p class="alert alert-error" role="alert">{{or (fieldError "platform") (fieldError "identifier") (fieldError "passphrase")}}</p>{{end}}
+
+  <div class="form-foot">
+    <button type="submit" class="button button-primary">{{if .ID}}Save changes{{else}}Add account{{end}}</button>
+    <a class="button button-quiet" href="/">Cancel</a>
+    {{if .ID}}<a class="button button-danger-quiet" href="{{pageURL "account-delete" "id" .ID}}">Delete account</a>{{end}}
+  </div>
+</form>`
 
 // load fetches and decrypts account id, mapping a missing one to a 404.
 func load(ctx context.Context, d *web.Deps, rc *collage.RenderContext, id string) (store.Account, error) {

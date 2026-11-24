@@ -1,10 +1,7 @@
 package session
 
 import (
-	"crypto/tls"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"context"
 	"testing"
 	"time"
 
@@ -36,18 +33,18 @@ func TestSlidingIdle(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.advance(14 * time.Minute)
-	if _, ok := m.Touch(s.Token); !ok {
+	if _, ok := m.Touch(s.Handle); !ok {
 		t.Fatal("touch at +14m should be ok")
 	}
 	c.advance(14 * time.Minute)
-	if _, ok := m.Touch(s.Token); !ok {
+	if _, ok := m.Touch(s.Handle); !ok {
 		t.Fatal("touch at +28m should be ok (sliding)")
 	}
 	c.advance(16 * time.Minute)
-	if _, ok := m.Touch(s.Token); ok {
+	if _, ok := m.Touch(s.Handle); ok {
 		t.Fatal("idle exceeded should fail")
 	}
-	if _, ok := m.Peek(s.Token); ok {
+	if _, ok := m.Peek(s.Handle); ok {
 		t.Fatal("session should be gone")
 	}
 }
@@ -57,12 +54,12 @@ func TestAbsoluteMax(t *testing.T) {
 	s, _ := m.Create(testDEK(1))
 	for i := 0; i < 72; i++ { // touch every 10m up to +12h
 		c.advance(10 * time.Minute)
-		if _, ok := m.Touch(s.Token); !ok {
+		if _, ok := m.Touch(s.Handle); !ok {
 			t.Fatalf("unexpected expiry at step %d", i)
 		}
 	}
 	c.advance(time.Minute) // +12h01m
-	if _, ok := m.Touch(s.Token); ok {
+	if _, ok := m.Touch(s.Handle); ok {
 		t.Fatal("absolute max exceeded should fail")
 	}
 }
@@ -71,11 +68,11 @@ func TestPeekDoesNotExtend(t *testing.T) {
 	m, c := setup()
 	s, _ := m.Create(testDEK(1))
 	c.advance(10 * time.Minute)
-	if _, ok := m.Peek(s.Token); !ok {
+	if _, ok := m.Peek(s.Handle); !ok {
 		t.Fatal("peek should be ok")
 	}
 	c.advance(6 * time.Minute)
-	if _, ok := m.Touch(s.Token); ok {
+	if _, ok := m.Touch(s.Handle); ok {
 		t.Fatal("touch at +16m should fail after peek-only")
 	}
 }
@@ -94,10 +91,10 @@ func TestExpiresAtAbsoluteBound(t *testing.T) {
 	created := c.t
 	for i := 0; i < 71; i++ {
 		c.advance(10 * time.Minute)
-		m.Touch(s.Token)
+		m.Touch(s.Handle)
 	}
 	c.advance(5 * time.Minute) // +11h55m
-	cur, ok := m.Touch(s.Token)
+	cur, ok := m.Touch(s.Handle)
 	if !ok {
 		t.Fatal("expected valid")
 	}
@@ -110,20 +107,20 @@ func TestRotate(t *testing.T) {
 	m, _ := setup()
 	a, _ := m.Create(testDEK(7))
 	b, _ := m.Create(testDEK(9))
-	n, err := m.Rotate(a.Token)
+	n, err := m.Rotate(a.Handle)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n.Token == a.Token {
-		t.Fatal("token must change")
+	if n.Handle == a.Handle {
+		t.Fatal("handle must change")
 	}
-	if _, ok := m.Peek(a.Token); ok {
+	if _, ok := m.Peek(a.Handle); ok {
 		t.Fatal("old token valid")
 	}
-	if _, ok := m.Peek(b.Token); ok {
+	if _, ok := m.Peek(b.Handle); ok {
 		t.Fatal("other session valid")
 	}
-	got, ok := m.Peek(n.Token)
+	got, ok := m.Peek(n.Handle)
 	if !ok || got.DEK != testDEK(7) {
 		t.Fatal("rotated session missing or DEK differs")
 	}
@@ -136,10 +133,10 @@ func TestExpiredDEKZeroed(t *testing.T) {
 	m, c := setup()
 	s, _ := m.Create(testDEK(5))
 	m.mu.Lock()
-	internal := m.sessions[s.Token]
+	internal := m.sessions[s.Handle]
 	m.mu.Unlock()
 	c.advance(16 * time.Minute)
-	if _, ok := m.Touch(s.Token); ok {
+	if _, ok := m.Touch(s.Handle); ok {
 		t.Fatal("should be expired")
 	}
 	if internal.DEK != (vault.DEK{}) {
@@ -155,14 +152,14 @@ func TestSweepAndDelete(t *testing.T) {
 	c.advance(6 * time.Minute)
 	m.Sweep()
 	m.mu.Lock()
-	_, hasA := m.sessions[a.Token]
-	_, hasB := m.sessions[b.Token]
+	_, hasA := m.sessions[a.Handle]
+	_, hasB := m.sessions[b.Handle]
 	m.mu.Unlock()
 	if hasA || !hasB {
 		t.Fatalf("sweep wrong: a=%v b=%v", hasA, hasB)
 	}
-	m.Delete(b.Token)
-	if _, ok := m.Peek(b.Token); ok {
+	m.Delete(b.Handle)
+	if _, ok := m.Peek(b.Handle); ok {
 		t.Fatal("deleted session valid")
 	}
 	m.Create(testDEK(3))
@@ -175,7 +172,7 @@ func TestSweepAndDelete(t *testing.T) {
 func TestCopyIsolated(t *testing.T) {
 	m, c := setup()
 	s, _ := m.Create(testDEK(4))
-	cp, _ := m.Touch(s.Token)
+	cp, _ := m.Touch(s.Handle)
 	c.advance(20 * time.Minute)
 	m.Sweep()
 	if cp.DEK != testDEK(4) {
@@ -183,118 +180,27 @@ func TestCopyIsolated(t *testing.T) {
 	}
 }
 
-func TestMiddleware(t *testing.T) {
+func TestLen(t *testing.T) {
 	m, c := setup()
-	s, _ := m.Create(testDEK(1))
-	var gotSess bool
-	var gotHad bool
-	h := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, gotSess = FromContext(r.Context())
-		gotHad = HadCookie(r.Context())
-	}))
-	do := func(path, token string) {
-		r := httptest.NewRequest("GET", path, nil)
-		if token != "" {
-			r.AddCookie(&http.Cookie{Name: CookieName, Value: token})
-		}
-		h.ServeHTTP(httptest.NewRecorder(), r)
+	m.Create(testDEK(1))
+	m.Create(testDEK(2))
+	if n := m.Len(); n != 2 {
+		t.Fatalf("Len = %d, want 2", n)
 	}
-	do("/", "")
-	if gotSess || gotHad {
-		t.Fatal("no cookie: want false,false")
-	}
-	do("/", "stale")
-	if gotSess || !gotHad {
-		t.Fatal("stale cookie: want false,true")
-	}
-	do("/", s.Token)
-	if !gotSess || gotHad {
-		t.Fatal("valid cookie: want true,false")
-	}
-	// /session peeks, /session/extend touches
-	c.advance(10 * time.Minute)
-	do("/session", s.Token)
-	c.advance(6 * time.Minute)
-	if _, ok := m.Peek(s.Token); ok {
-		t.Fatal("/session must not extend")
-	}
-	s2, _ := m.Create(testDEK(2))
-	c.advance(10 * time.Minute)
-	do("/session/extend", s2.Token)
-	c.advance(10 * time.Minute)
-	if _, ok := m.Peek(s2.Token); !ok {
-		t.Fatal("/session/extend must extend")
+	c.advance(16 * time.Minute)
+	m.Sweep()
+	if n := m.Len(); n != 0 {
+		t.Fatalf("Len after sweep = %d, want 0", n)
 	}
 }
 
-func TestCookies(t *testing.T) {
-	m, _ := setup()
-	s, _ := m.Create(testDEK(1))
-	for _, tlsOn := range []bool{false, true} {
-		r := httptest.NewRequest("GET", "/", nil)
-		if tlsOn {
-			r.TLS = &tls.ConnectionState{}
-		}
-		h := Cookie(r, s.Token).String()
-		for _, want := range []string{CookieName + "=" + s.Token, "HttpOnly", "SameSite=Strict", "Path=/"} {
-			if !strings.Contains(h, want) {
-				t.Fatalf("missing %q in %q", want, h)
-			}
-		}
-		if strings.Contains(h, "Secure") != tlsOn {
-			t.Fatalf("Secure mismatch (tls=%v): %q", tlsOn, h)
-		}
-		h = ExpiredCookie(r).String()
-		if !strings.Contains(h, "Max-Age=0") && !strings.Contains(h, "Max-Age=-1") {
-			t.Fatalf("clear cookie not expiring: %q", h)
-		}
+func TestContext(t *testing.T) {
+	if _, ok := FromContext(context.Background()); ok {
+		t.Fatal("empty context has a session")
 	}
-}
-
-func TestMiddlewareSkipsStatic(t *testing.T) {
-	m, c := setup()
-	s, _ := m.Create(testDEK(1))
-	var gotSess bool
-	h := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, gotSess = FromContext(r.Context())
-	}))
-	c.advance(10 * time.Minute)
-	r := httptest.NewRequest("GET", "/static/app.css", nil)
-	r.AddCookie(&http.Cookie{Name: CookieName, Value: s.Token})
-	h.ServeHTTP(httptest.NewRecorder(), r)
-	if gotSess {
-		t.Fatal("/static/ request must not resolve the session")
-	}
-	c.advance(6 * time.Minute)
-	if _, ok := m.Peek(s.Token); ok {
-		t.Fatal("/static/ request must not extend the session")
-	}
-}
-
-// The request's copy of the session's key is wiped once the request is
-// served; the stored session keeps its own.
-func TestMiddlewareWipesTheRequestsDEK(t *testing.T) {
-	for _, path := range []string{"/", "/session"} {
-		m, _ := setup()
-		s, _ := m.Create(testDEK(7))
-		var seen *Session
-		h := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			seen, _ = FromContext(r.Context())
-			if seen.DEK != testDEK(7) {
-				t.Errorf("%s: handler sees DEK %v", path, seen.DEK)
-			}
-		}))
-		r := httptest.NewRequest("GET", path, nil)
-		r.AddCookie(&http.Cookie{Name: CookieName, Value: s.Token})
-		h.ServeHTTP(httptest.NewRecorder(), r)
-		if seen == nil {
-			t.Fatalf("%s: no session in the request", path)
-		}
-		if seen.DEK != (vault.DEK{}) {
-			t.Fatalf("%s: request's DEK copy not wiped", path)
-		}
-		if stored, ok := m.Peek(s.Token); !ok || stored.DEK != testDEK(7) {
-			t.Fatalf("%s: stored session lost its DEK", path)
-		}
+	s := &Session{Handle: "h", DEK: testDEK(3)}
+	got, ok := FromContext(WithSession(context.Background(), s))
+	if !ok || got != s {
+		t.Fatal("WithSession/FromContext lost the session")
 	}
 }

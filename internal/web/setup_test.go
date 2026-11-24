@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"errors"
-	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"regexp"
@@ -11,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"passenger-go/internal/session"
 	"passenger-go/internal/store"
 	"passenger-go/internal/vault"
 )
@@ -108,29 +106,6 @@ func TestPendingCookies(t *testing.T) {
 	}
 }
 
-func TestRequirePendingSetup(t *testing.T) {
-	d := newDeps(t)
-	code, _ := NewSetupCode()
-	d.SetupCode, d.Pending = code, NewPendingSetup(d.Now)
-
-	wantRedirect(t, runGuard(t, d, d.RequirePendingSetup, "/setup/confirm", ""), "/setup")
-
-	tok, err := d.Pending.Put(vault.DEK{}, store.VaultRow{}, "K")
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := httptest.NewRequest("GET", "/setup/confirm", nil)
-	r.AddCookie(&http.Cookie{Name: PendingCookieName, Value: tok})
-	if dec, err := d.RequirePendingSetup(r.Context(), r); err != nil || dec != nil {
-		t.Fatalf("valid pending: %+v, %v", dec, err)
-	}
-
-	initVault(t, d)
-	if dec, _ := d.RequirePendingSetup(r.Context(), r); dec == nil || dec.Location != "/login" {
-		t.Fatalf("initialized: %+v, want /login", dec)
-	}
-}
-
 func TestRetryMessageRoundsUp(t *testing.T) {
 	for wait, want := range map[time.Duration]string{
 		time.Second:             "Try again in 1 second.",
@@ -140,34 +115,6 @@ func TestRetryMessageRoundsUp(t *testing.T) {
 	} {
 		if got := RetryMessage(wait); !strings.Contains(got, want) {
 			t.Errorf("RetryMessage(%v) = %q, want %q", wait, got, want)
-		}
-	}
-}
-
-func TestRequireSessionNextOnlyForReads(t *testing.T) {
-	d := newDeps(t)
-	initVault(t, d)
-	h := d.Sessions.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dec, err := d.RequireSession(r.Context(), r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		w.Header().Set("Location", dec.Location)
-	}))
-	for _, tc := range []struct{ method, cookie, want string }{
-		{"POST", "", "/login"},
-		{"POST", "stale", "/login"},
-		{"HEAD", "", "/login?next=%2Fx"},
-		{"GET", "stale", "/login?next=%2Fx"},
-	} {
-		r := httptest.NewRequest(tc.method, "/x", nil)
-		if tc.cookie != "" {
-			r.AddCookie(&http.Cookie{Name: session.CookieName, Value: tc.cookie})
-		}
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, r)
-		if got := rec.Header().Get("Location"); got != tc.want {
-			t.Errorf("%s cookie=%q: %q, want %q", tc.method, tc.cookie, got, tc.want)
 		}
 	}
 }
