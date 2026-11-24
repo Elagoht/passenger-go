@@ -254,3 +254,23 @@ func TestCookies(t *testing.T) {
 		}
 	}
 }
+
+func TestMiddlewareSkipsStatic(t *testing.T) {
+	m, c := setup()
+	s, _ := m.Create(testDEK(1))
+	var gotSess bool
+	h := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, gotSess = FromContext(r.Context())
+	}))
+	c.advance(10 * time.Minute)
+	r := httptest.NewRequest("GET", "/static/app.css", nil)
+	r.AddCookie(&http.Cookie{Name: CookieName, Value: s.Token})
+	h.ServeHTTP(httptest.NewRecorder(), r)
+	if gotSess {
+		t.Fatal("/static/ request must not resolve the session")
+	}
+	c.advance(6 * time.Minute)
+	if _, ok := m.Peek(s.Token); ok {
+		t.Fatal("/static/ request must not extend the session")
+	}
+}

@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"net/http"
+	"strings"
 )
 
 type ctxKey int
@@ -29,9 +30,14 @@ func HadCookie(ctx context.Context) bool {
 }
 
 // Middleware resolves the session cookie. /session only peeks (so polling does
-// not keep the session alive); every other path extends the session.
+// not keep the session alive); /static/ is skipped entirely (fetching an asset
+// is not activity); every other path extends the session.
 func (m *Manager) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/static/") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		c, err := r.Cookie(CookieName)
 		if err != nil || c.Value == "" {
 			next.ServeHTTP(w, r)
