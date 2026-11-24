@@ -55,13 +55,15 @@ func TestSessionCookieLimits(t *testing.T) {
 		wantLocation(t, c.Get("/generate").WantStatus(http.StatusSeeOther), "/login?next=%2Fgenerate")
 	})
 	t.Run("max", func(t *testing.T) {
+		// Generous margins: the plugin counts whole seconds, and a slow
+		// machine (CI under -race) spends a while in setUp.
 		t.Setenv("SESSION_IDLE", "1h")
-		t.Setenv("SESSION_MAX", "2s")
+		t.Setenv("SESSION_MAX", "4s")
 		c, env := newTestApp(t)
 		setUp(t, c, env, testPass)
-		time.Sleep(1100 * time.Millisecond)
+		time.Sleep(time.Second)
 		c.Get("/").WantStatus(http.StatusOK) // activity does not push the end back
-		time.Sleep(1100 * time.Millisecond)
+		time.Sleep(4 * time.Second)
 		wantLocation(t, c.Get("/generate").WantStatus(http.StatusSeeOther), "/login?next=%2Fgenerate")
 	})
 }

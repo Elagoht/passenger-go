@@ -45,7 +45,7 @@ lacks() {
 (
     # The installer's functions, without running it. The variables set below
     # are read by those functions (shellcheck cannot see that).
-    # shellcheck disable=SC2034,SC1091
+    # shellcheck disable=SC2034 source=install.sh
     PASSENGER_INSTALL_LIB=1 . "$INSTALLER"
     # Pretend 4444 is taken; called by check_port and gen_port.
     # shellcheck disable=SC2329
