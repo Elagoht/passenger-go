@@ -60,7 +60,7 @@ The script downloads the latest release binary to `/opt/passenger-go`, installs 
 Then serve it on your Tailscale network:
 
 ```bash
-tailscale serve --port http://localhost:[YOUR_PORT_HERE]
+tailscale serve --bg [YOUR_PORT_HERE]
 ```
 
 ### First run: setup code

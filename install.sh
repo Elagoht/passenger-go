@@ -49,13 +49,26 @@ if [ -f "$OLD_DB" ]; then
     upgrade=true
     if [ -e "$INSTALL_DIR/.env.old" ]; then
         errorPrint "$INSTALL_DIR/.env.old already exists. Refusing to overwrite it."
-        errorPrint "Check it (it may hold your old AES_GCM_SECRET), move it away, and run this script again."
+        errorPrint "It may hold your old AES_GCM_SECRET. If a previous run of this script already moved your old .env there,"
+        errorPrint "finish the migration steps it printed (stop the service, run migrate, delete the old files), or move"
+        errorPrint ".env.old back to $INSTALL_DIR/.env by hand, then run this script again."
         exit 1
     fi
     if [ ! -f "$INSTALL_DIR/.env" ]; then
         errorPrint "Old database found but $INSTALL_DIR/.env is missing; the old AES_GCM_SECRET is needed to migrate."
         exit 1
     fi
+    # Stop the old service so the new binary cannot be started (Restart=always)
+    # and create data/passenger.db before migrate runs.
+    infoPrint "Stopping the old service..."
+    sudo systemctl stop passenger-go || true
+fi
+
+# Re-run on a new-format install: keep the existing configuration untouched.
+keep_env=false
+if [ "$upgrade" == false ] && [ -f "$INSTALL_DIR/.env" ]; then
+    keep_env=true
+    infoPrint "Existing $INSTALL_DIR/.env found; keeping it unchanged."
 fi
 
 infoPrint "Creating directory..."
@@ -88,31 +101,37 @@ infoPrint "Copying service file..."
 sudo cp passenger-go.service /etc/systemd/system/passenger-go.service
 sudo sed -i "s/{USER}/$(whoami)/g" /etc/systemd/system/passenger-go.service
 
-infoPrint "If you will set a custom PORT, write it here."
-read -rp "PORT: " port
-if [ -z "$port" ]; then
-    port="8080"
-fi
-case "$port" in
-    *[!0-9]*)
-        errorPrint "PORT must be a number"
+if [ "$keep_env" == false ]; then
+    infoPrint "If you will set a custom PORT, write it here."
+    read -rp "PORT: " port
+    if [ -z "$port" ]; then
+        port="8080"
+    fi
+    case "$port" in
+        '' | *[!0-9]*)
+            errorPrint "PORT must be a number between 1 and 65535"
+            exit 1
+            ;;
+    esac
+    if [ "$((10#$port))" -lt 1 ] || [ "$((10#$port))" -gt 65535 ]; then
+        errorPrint "PORT must be a number between 1 and 65535"
         exit 1
-        ;;
-esac
+    fi
 
-infoPrint "Writing $INSTALL_DIR/.env..."
-csrf_key=$(openssl rand -hex 32) || exit 1
-(
-    umask 077
-    cat > "$INSTALL_DIR/.env" <<ENVFILE
+    infoPrint "Writing $INSTALL_DIR/.env..."
+    csrf_key=$(openssl rand -hex 32) || exit 1
+    (
+        umask 077
+        cat > "$INSTALL_DIR/.env" <<ENVFILE
 HOST=0.0.0.0
 PORT=$port
 DATABASE_PATH=$NEW_DB
 CSRF_KEY=$csrf_key
 ENVFILE
-)
-chmod 600 "$INSTALL_DIR/.env"
-successPrint "PORT set to $port"
+    )
+    chmod 600 "$INSTALL_DIR/.env"
+    successPrint "PORT set to $port"
+fi
 
 infoPrint "Reloading systemd..."
 sudo systemctl daemon-reload
@@ -134,9 +153,16 @@ if [ "$upgrade" == true ]; then
     exit 1
 fi
 
-infoPrint "Enabling and starting service..."
-sudo systemctl enable --now passenger-go.service
+if [ "$keep_env" == true ] && sudo systemctl is-enabled --quiet passenger-go.service; then
+    infoPrint "Restarting service..."
+    sudo systemctl restart passenger-go.service
+else
+    infoPrint "Enabling and starting service..."
+    sudo systemctl enable --now passenger-go.service
+fi
 
 successPrint "Done!"
-infoPrint "Passenger Go prints a one-time setup code on first start. Find it with:"
-echo "    journalctl -u passenger-go | grep \"setup code\""
+if [ "$keep_env" == false ]; then
+    infoPrint "Passenger Go prints a one-time setup code on first start. Find it with:"
+    echo "    journalctl -u passenger-go | grep \"setup code\""
+fi
