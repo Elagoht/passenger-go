@@ -10,7 +10,18 @@ import (
 )
 
 // clientIP is the rate limiter's key for r.
-func clientIP(r *http.Request) netip.Addr { return collage.ClientIP(r).Unmap() }
+func clientIP(r *http.Request) netip.Addr { return limiterKey(collage.ClientIP(r)) }
+
+// limiterKey groups addresses the way one client holds them: an IPv4 address
+// (IPv4-mapped IPv6 included) is its own key, while an IPv6 address counts as
+// its /64, which a single host usually gets whole and can rotate through.
+func limiterKey(ip netip.Addr) netip.Addr {
+	ip = ip.Unmap().WithZone("")
+	if !ip.Is6() {
+		return ip
+	}
+	return netip.PrefixFrom(ip, 64).Masked().Addr()
+}
 
 // Throttle is called before checking a guessed secret (passphrase, recovery
 // key, setup code). When r's client is backing off it returns the message for

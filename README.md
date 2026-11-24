@@ -43,6 +43,8 @@ The vault key is derived from your master passphrase with Argon2id and is never 
 
 Over plain HTTP the session cookie cannot be marked `Secure`. For anything beyond a private network such as Tailscale, run Passenger-Go behind a TLS reverse proxy with `HOST=127.0.0.1` and `TRUSTED_PROXIES` set to the proxy's address.
 
+Wrong passphrase, recovery-key and setup-code guesses are throttled per client address (an IPv6 client counts as its whole /64). Behind a proxy every request comes from the proxy's address, so unless `TRUSTED_PROXIES` names the proxy, all clients share one budget and a few wrong guesses from anyone make everyone wait.
+
 ## Recommended Way to Run
 
 Passenger-Go is designed to run as an always-online server on a VPS or a dedicated machine. [Tailscale](https://tailscale.com) is a good way to reach it from anywhere without exposing it to the internet.
@@ -62,6 +64,8 @@ Then serve it on your Tailscale network:
 ```bash
 tailscale serve --bg [YOUR_PORT_HERE]
 ```
+
+If whatever proxies the requests to Passenger-Go (a reverse proxy, or `tailscale serve`) sends an `X-Forwarded-For` header, set `TRUSTED_PROXIES` in `/opt/passenger-go/.env` to the proxy's address, `127.0.0.1` when it runs on the same machine, and restart the service. Otherwise every client shares the proxy's address and with it one rate-limit budget for passphrase guesses.
 
 ### First run: setup code
 
