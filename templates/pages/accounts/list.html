@@ -1,0 +1,36 @@
+<form method="get" action="{{pageURL "accounts"}}" role="search">
+  <input type="search" name="q" value="{{.Query}}" placeholder="Search accounts..." data-filter="accounts-grid" autocomplete="off">
+</form>
+
+{{if .Empty}}
+<section class="empty-state">
+  <h1>Accounts</h1>
+  <p>No accounts yet.</p>
+  <p>Get started by importing your existing accounts or creating a new one.</p>
+  <nav>
+    <a class="button button-success" href="/import">Import accounts</a>
+    <a class="button" href="{{pageURL "account-new"}}">Add new account</a>
+  </nav>
+</section>
+{{else}}
+{{if .NoMatch}}<p class="empty-note">No account matches your search.</p>{{end}}
+<div id="accounts-grid">
+  {{range .Cards}}
+  <div class="account-card" data-card data-search="{{.Search}}">
+    <div class="strength-bar {{.Strength}}"></div>
+    <a class="card-header" href="{{pageURL "account" "id" .ID}}">
+      <div class="initials">{{.Initials}}</div>
+      <div class="card-info">
+        <div class="platform">{{.Platform}}</div>
+        <div class="identifier">{{.Identifier}}</div>
+      </div>
+    </a>
+    <div class="card-actions">
+      <button type="button" class="button-primary" data-copy-passphrase data-url="{{actionURL "account-passphrase" "id" .ID}}" data-id="{{.ID}}" hidden>Copy password</button>
+      <button type="button" class="button-secondary" data-copy-text="{{.Identifier}}" data-id="{{.ID}}" title="Copy identifier" hidden>Copy user</button>
+      {{with .Link}}<a class="button button-secondary" href="{{.}}" target="_blank" rel="noopener noreferrer" title="Open URL">Open</a>{{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}

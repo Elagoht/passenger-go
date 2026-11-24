@@ -1,0 +1,47 @@
+<h1>{{if .ID}}Account details{{else}}New account{{end}}</h1>
+
+<form method="post" action="{{if .ID}}{{pageURL "account" "id" .ID}}{{else}}{{pageURL "account-new"}}{{end}}" autocomplete="off">
+  {{csrfToken}}
+
+  <label>
+    <span>Platform</span>
+    <input required type="text" name="platform" value="{{.Platform}}">
+  </label>
+
+  <label>
+    <span>Identifier</span>
+    <input required type="text" name="identifier" value="{{.Identifier}}">
+  </label>
+
+  <label>
+    <span>URL</span>
+    <input type="text" inputmode="url" name="url" value="{{.URL}}">
+  </label>
+
+  <label>
+    <span>Passphrase</span>
+    <div class="passphrase-input-container">
+      <input required type="password" id="passphrase" name="passphrase" value="{{.Passphrase}}" autocomplete="new-password">
+    </div>
+  </label>
+
+  <div class="passphrase-actions">
+    <button type="button" class="button-secondary" data-reveal="passphrase" hidden>Show</button>
+    <button type="button" class="button-secondary" data-copy-input="passphrase" hidden>Copy</button>
+    <a class="button button-secondary" href="{{pageURL "generate"}}">Generate</a>
+  </div>
+
+  <label>
+    <span>Notes</span>
+    <textarea name="notes">{{.Notes}}</textarea>
+  </label>
+
+  {{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+  <button type="submit"{{if not .ID}} class="button-success"{{end}}>{{if .ID}}Save{{else}}Create{{end}}</button>
+</form>
+
+{{if .ID}}
+<h2>Danger zone</h2>
+<a class="button button-danger" href="{{pageURL "account-delete" "id" .ID}}">Delete</a>
+{{end}}

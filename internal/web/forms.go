@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"net/url"
 	"strings"
 
@@ -42,4 +43,18 @@ func SessionFrom(rc *collage.RenderContext) *session.Session {
 		return nil
 	}
 	return s
+}
+
+// ErrNoSession is returned by RequireSessionFrom when a render has no session,
+// which a guarded page or action never sees.
+var ErrNoSession = errors.New("web: no session on a guarded render")
+
+// RequireSessionFrom is SessionFrom for handlers behind RequireSession: the
+// copy it returns carries the DEK, which the caller wipes after use.
+func RequireSessionFrom(rc *collage.RenderContext) (*session.Session, error) {
+	s := SessionFrom(rc)
+	if s == nil {
+		return nil, ErrNoSession
+	}
+	return s, nil
 }

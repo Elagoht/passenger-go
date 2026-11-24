@@ -1,0 +1,10 @@
+<h1>Delete account</h1>
+
+<form method="post" action="{{pageURL "account-delete" "id" .ID}}">
+  {{csrfToken}}
+  <p>Delete <strong>{{.Platform}}</strong> ({{.Identifier}})? This cannot be undone.</p>
+  <div class="button-group grid-2">
+    <a class="button button-secondary" href="{{pageURL "account" "id" .ID}}">Cancel</a>
+    <button type="submit" class="button-danger">Delete</button>
+  </div>
+</form>

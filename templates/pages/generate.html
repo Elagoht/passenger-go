@@ -1,0 +1,36 @@
+<h1>Generator</h1>
+
+{{with .Result}}
+<div class="generated">
+  <label>
+    <span>Result</span>
+    <input type="text" id="generated" readonly value="{{.}}">
+  </label>
+  <div class="passphrase-actions">
+    <button type="button" class="button-secondary" data-copy-input="generated" hidden>Copy</button>
+  </div>
+</div>
+{{end}}
+
+{{with .Error}}<blockquote class="error">{{.}}</blockquote>{{end}}
+
+<form method="post" action="{{pageURL "generate"}}">
+  {{csrfToken}}
+  <strong>New passphrase</strong>
+  <label>
+    <span>Length</span>
+    <input type="number" name="length" min="8" max="4096" value="{{.Length}}">
+  </label>
+  <button type="submit">Generate</button>
+</form>
+
+<form method="post" action="{{pageURL "generate"}}">
+  {{csrfToken}}
+  <strong>Alternate a passphrase</strong>
+  <p>Swaps characters for look-alikes: <code>password</code> becomes <code>p@55w0rd</code>.</p>
+  <label>
+    <span>Source</span>
+    <input type="text" name="source" autocomplete="off" spellcheck="false">
+  </label>
+  <button type="submit" class="button-secondary">Alternate</button>
+</form>
