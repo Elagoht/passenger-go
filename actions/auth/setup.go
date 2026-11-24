@@ -22,17 +22,18 @@ func Setup(d *web.Deps) *collage.Action {
 }
 
 func setupHandler(d *web.Deps) collage.ActionHandlerFunc {
-	return func(_ context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
+	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
 		pass := r.PostFormValue("passphrase")
 		if msg := checkNewPassphrase(pass, r.PostFormValue("confirm")); msg != "" {
 			return refuse(rc, http.StatusUnprocessableEntity, msg), nil
 		}
-		if msg, ok := d.Throttle(r); !ok {
+		if msg, ok, err := d.Throttle(r); err != nil {
+			return nil, err
+		} else if !ok {
 			return throttled(rc, msg), nil
 		}
 		if !d.SetupCode.Check(r.PostFormValue("code")) {
-			d.AttemptFailed(r)
 			return refuse(rc, http.StatusUnprocessableEntity, "Wrong setup code."), nil
 		}
 		d.AttemptSucceeded(r)
@@ -46,11 +47,11 @@ func setupHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if err != nil {
 			return nil, err
 		}
-		passWrap, err := vault.Wrap(pass, dek, d.KDF, vault.AADPass)
+		passWrap, err := web.Wrap(ctx, pass, dek, d.KDF, vault.AADPass)
 		if err != nil {
 			return nil, err
 		}
-		recWrap, err := vault.Wrap(vault.NormalizeRecoveryKey(recovery), dek, d.KDF, vault.AADRecovery)
+		recWrap, err := web.Wrap(ctx, vault.NormalizeRecoveryKey(recovery), dek, d.KDF, vault.AADRecovery)
 		if err != nil {
 			return nil, err
 		}

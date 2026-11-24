@@ -14,6 +14,7 @@ import (
 
 	"github.com/Elagoht/collage/pkg/collage"
 
+	"passenger-go/internal/session"
 	"passenger-go/internal/store"
 	"passenger-go/internal/vault"
 )
@@ -110,24 +111,19 @@ func (p *PendingSetup) clearLocked() {
 	p.token, p.row, p.recovery, p.created = "", store.VaultRow{}, "", time.Time{}
 }
 
-// PendingCookie is the cookie carrying a pending setup's token, with the
-// session cookie's flags.
+// PendingCookie is the cookie carrying a pending setup's token: the session
+// cookie under another name.
 func PendingCookie(r *http.Request, token string) *http.Cookie {
-	return &http.Cookie{
-		Name:     PendingCookieName,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-		Secure:   collage.IsHTTPS(r),
-	}
+	c := session.Cookie(r, token)
+	c.Name = PendingCookieName
+	return c
 }
 
 // ClearPendingCookie is the pending-setup cookie that tells the browser to
 // drop it.
 func ClearPendingCookie(r *http.Request) *http.Cookie {
-	c := PendingCookie(r, "")
-	c.MaxAge = -1
+	c := session.ExpiredCookie(r)
+	c.Name = PendingCookieName
 	return c
 }
 

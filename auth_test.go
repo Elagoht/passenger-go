@@ -13,6 +13,8 @@ import (
 
 	"github.com/Elagoht/collage/pkg/collage"
 	"github.com/Elagoht/collage/pkg/collagetest"
+
+	"passenger-go/internal/session"
 )
 
 const (
@@ -154,7 +156,7 @@ func TestSetupCodeIsRateLimited(t *testing.T) {
 		c.Submit(page, "/setup", setupValues(wrong, testPass, testPass)).WantStatus(http.StatusUnprocessableEntity)
 	}
 	res := c.Submit(page, "/setup", setupValues(code, testPass, testPass)).WantStatus(http.StatusTooManyRequests)
-	wantBody(t, res, "Try again in 1 seconds")
+	wantBody(t, res, "Try again in 1 second.")
 
 	env.Clock.Advance(time.Second)
 	c.Submit(page, "/setup", setupValues(code, testPass, testPass)).WantStatus(http.StatusSeeOther)
@@ -211,7 +213,7 @@ func TestLoginIsRateLimited(t *testing.T) {
 		login(guest, "/login", "wrong passphrase!").WantStatus(http.StatusUnprocessableEntity)
 	}
 	res := login(guest, "/login", testPass).WantStatus(http.StatusTooManyRequests)
-	wantBody(t, res, "Try again in 1 seconds")
+	wantBody(t, res, "Try again in 1 second.")
 
 	env.Clock.Advance(time.Second)
 	wantLocation(t, login(guest, "/login", testPass).WantStatus(http.StatusSeeOther), "/")
@@ -236,13 +238,40 @@ func TestSessionExpiry(t *testing.T) {
 }
 
 func TestLogout(t *testing.T) {
-	c, env := newTestApp(t)
-	setUp(t, c, env, testPass)
+	owner, env := newTestApp(t)
+	setUp(t, owner, env, testPass)
+
+	c := collagetest.New(t, env.App.Handler())
+	res := login(c, "/login", testPass).WantStatus(http.StatusSeeOther)
+	var token string
+	for _, ck := range (&http.Response{Header: res.Header}).Cookies() {
+		if ck.Name == session.CookieName {
+			token = ck.Value
+		}
+	}
+	if token == "" {
+		t.Fatal("login set no session cookie")
+	}
 	home := c.Get("/").WantStatus(http.StatusOK)
 
-	res := c.Submit(home, "/logout", nil).WantStatus(http.StatusSeeOther)
+	res = c.Submit(home, "/logout", nil).WantStatus(http.StatusSeeOther)
 	wantLocation(t, res, "/login")
 	wantLocation(t, c.Get("/").WantStatus(http.StatusSeeOther), "/login?next=%2F")
+
+	// The old cookie no longer opens anything: the session is gone server-side.
+	replay := collagetest.New(t, env.App.Handler())
+	req := replay.Request(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: session.CookieName, Value: token})
+	wantLocation(t, replay.Do(req).WantStatus(http.StatusSeeOther), "/login?expired=1&next=%2F")
+
+	// A stale POST is sent to login with no next: after login the browser
+	// would GET it.
+	req = replay.Request(http.MethodPost, "/logout", nil)
+	req.AddCookie(&http.Cookie{Name: session.CookieName, Value: token})
+	wantLocation(t, replay.Do(req).WantStatus(http.StatusSeeOther), "/login?expired=1")
+
+	// The owner's session is untouched by another client's logout.
+	owner.Get("/").WantStatus(http.StatusOK)
 }
 
 func recoverValues(key, pass, confirm string) url.Values {

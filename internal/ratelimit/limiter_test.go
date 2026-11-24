@@ -167,3 +167,58 @@ func TestConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestBeginCountsAsFailure(t *testing.T) {
+	l, c := newTest()
+	for i := 0; i < 5; i++ {
+		if _, ok := l.Begin(ipA); !ok {
+			t.Fatalf("Begin %d refused", i+1)
+		}
+	}
+	if wait, ok := l.Begin(ipA); ok || wait != time.Second {
+		t.Fatalf("6th Begin = %v, %v; want 1s, false", wait, ok)
+	}
+	c.advance(time.Second)
+	if _, ok := l.Begin(ipA); !ok {
+		t.Fatal("Begin after the backoff refused")
+	}
+	l.Succeed(ipA)
+	if _, ok := l.Allow(ipA); !ok {
+		t.Fatal("Succeed did not reset")
+	}
+	if _, ok := l.Begin(ipB); !ok {
+		t.Fatal("other IP refused")
+	}
+}
+
+func TestBeginFeedsGlobalWindow(t *testing.T) {
+	l, _ := newTest()
+	for i := 0; i <= globalLimit; i++ {
+		l.Begin(netip.AddrFrom4([4]byte{10, 0, byte(i >> 8), byte(i)}))
+	}
+	if d := l.GlobalDelay(); d != globalDelay {
+		t.Fatalf("GlobalDelay = %v, want %v", d, globalDelay)
+	}
+}
+
+func TestBeginConcurrentSameIP(t *testing.T) {
+	l, _ := newTest()
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	allowed := 0
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, ok := l.Begin(ipA); ok {
+				mu.Lock()
+				allowed++
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	if allowed > 5 {
+		t.Fatalf("%d of 20 concurrent attempts allowed, want at most 5", allowed)
+	}
+}

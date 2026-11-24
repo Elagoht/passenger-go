@@ -30,7 +30,9 @@ func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if msg := checkNewPassphrase(pass, r.PostFormValue("confirm")); msg != "" {
 			return refuse(rc, http.StatusUnprocessableEntity, msg), nil
 		}
-		if msg, ok := d.Throttle(r); !ok {
+		if msg, ok, err := d.Throttle(r); err != nil {
+			return nil, err
+		} else if !ok {
 			return throttled(rc, msg), nil
 		}
 		row, err := d.Store.Vault(ctx)
@@ -38,9 +40,8 @@ func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 			return nil, err
 		}
 		key := vault.NormalizeRecoveryKey(r.PostFormValue("recovery"))
-		dek, err := vault.Unwrap(key, row.Recovery, row.KDF, vault.AADRecovery)
+		dek, err := web.Unwrap(ctx, key, row.Recovery, row.KDF, vault.AADRecovery)
 		if errors.Is(err, vault.ErrWrongSecret) {
-			d.AttemptFailed(r)
 			return refuse(rc, http.StatusUnprocessableEntity, "Wrong recovery key."), nil
 		}
 		if err != nil {
@@ -53,11 +54,11 @@ func recoverHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if err != nil {
 			return nil, err
 		}
-		passWrap, err := vault.Wrap(pass, dek, row.KDF, vault.AADPass)
+		passWrap, err := web.Wrap(ctx, pass, dek, row.KDF, vault.AADPass)
 		if err != nil {
 			return nil, err
 		}
-		recWrap, err := vault.Wrap(vault.NormalizeRecoveryKey(newKey), dek, row.KDF, vault.AADRecovery)
+		recWrap, err := web.Wrap(ctx, vault.NormalizeRecoveryKey(newKey), dek, row.KDF, vault.AADRecovery)
 		if err != nil {
 			return nil, err
 		}

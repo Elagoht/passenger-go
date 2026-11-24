@@ -32,12 +32,13 @@ func confirmHandler(d *web.Deps) collage.ActionHandlerFunc {
 		if !ok { // expired between the guard and here
 			return collage.SeeOtherPage(rc, "setup", nil)
 		}
-		if msg, ok := d.Throttle(r); !ok {
+		if msg, ok, err := d.Throttle(r); err != nil {
+			return nil, err
+		} else if !ok {
 			return throttled(rc, msg), nil
 		}
 		typed := vault.NormalizeRecoveryKey(r.PostFormValue("recovery"))
 		if subtle.ConstantTimeCompare([]byte(typed), []byte(vault.NormalizeRecoveryKey(recovery))) != 1 {
-			d.AttemptFailed(r)
 			return refuse(rc, http.StatusUnprocessableEntity,
 				"The recovery key does not match. Check what you wrote down and type it again."), nil
 		}

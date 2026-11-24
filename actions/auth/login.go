@@ -24,16 +24,17 @@ func Login(d *web.Deps) *collage.Action {
 func loginHandler(d *web.Deps) collage.ActionHandlerFunc {
 	return func(ctx context.Context, rc *collage.RenderContext) (*collage.ActionResult, error) {
 		r := rc.Request
-		if msg, ok := d.Throttle(r); !ok {
+		if msg, ok, err := d.Throttle(r); err != nil {
+			return nil, err
+		} else if !ok {
 			return throttled(rc, msg), nil
 		}
 		row, err := d.Store.Vault(ctx)
 		if err != nil {
 			return nil, err
 		}
-		dek, err := vault.Unwrap(r.PostFormValue("passphrase"), row.Pass, row.KDF, vault.AADPass)
+		dek, err := web.Unwrap(ctx, r.PostFormValue("passphrase"), row.Pass, row.KDF, vault.AADPass)
 		if errors.Is(err, vault.ErrWrongSecret) {
-			d.AttemptFailed(r)
 			return refuse(rc, http.StatusUnprocessableEntity, "Wrong passphrase."), nil
 		}
 		if err != nil {

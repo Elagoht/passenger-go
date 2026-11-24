@@ -80,7 +80,31 @@ func (l *Limiter) Fail(ip netip.Addr) {
 	defer l.mu.Unlock()
 	now := l.now()
 	l.sweep(now)
+	l.failLocked(ip, now)
+}
 
+// Begin starts an attempt from ip. When ip is backing off it returns the
+// remaining wait and false. Otherwise it records the attempt as a failure up
+// front, exactly as Fail would, and returns true; the caller calls Succeed if
+// the guess turns out right. Checking and recording under one lock means
+// parallel attempts cannot all slip past the backoff before any failure is
+// counted.
+func (l *Limiter) Begin(ip netip.Addr) (wait time.Duration, ok bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	l.sweep(now)
+	if e := l.ips[ip]; e != nil && now.Sub(e.lastFail) < entryTTL {
+		if wait = e.blockedUntil.Sub(now); wait > 0 {
+			return wait, false
+		}
+	}
+	l.failLocked(ip, now)
+	return 0, true
+}
+
+// failLocked records a failure of ip at now. Caller holds l.mu.
+func (l *Limiter) failLocked(ip netip.Addr, now time.Time) {
 	e := l.ips[ip]
 	if e == nil || now.Sub(e.lastFail) >= entryTTL {
 		e = &entry{}
@@ -91,7 +115,6 @@ func (l *Limiter) Fail(ip netip.Addr) {
 	if e.fails > freeAttempts {
 		e.blockedUntil = now.Add(backoff(e.fails - freeAttempts - 1))
 	}
-
 	l.pruneGlobal(now)
 	l.global = append(l.global, now)
 	if len(l.global) > maxGlobalEntries {
