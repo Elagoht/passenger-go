@@ -282,4 +282,10 @@ func TestRecover(t *testing.T) {
 
 	login(c, "/login", testPass).WantStatus(http.StatusUnprocessableEntity)
 	wantLocation(t, login(c, "/login", otherPass).WantStatus(http.StatusSeeOther), "/")
+
+	// The new key recovers in turn.
+	other := collagetest.New(t, env.App.Handler())
+	page = other.Get("/recover").WantStatus(http.StatusOK)
+	typed = strings.ToLower(strings.ReplaceAll(newKey, "-", " "))
+	other.Submit(page, "/recover", recoverValues(typed, testPass, testPass)).WantStatus(http.StatusOK)
 }
