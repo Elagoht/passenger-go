@@ -64,13 +64,29 @@
       credentials: "same-origin",
       headers: { "X-CSRF-Token": csrfToken() },
     }).then(function (response) {
+      // An expired session is answered with a redirect to the login page,
+      // which fetch follows: that is HTML, not a passphrase. Send the reader
+      // to sign in again instead of copying whatever came back.
+      var json = (response.headers.get("Content-Type") || "").indexOf("application/json") === 0;
+      if (response.status === 401 || response.redirected || !json) {
+        sessionExpired();
+        throw new Error("session expired");
+      }
       if (!response.ok) {
         throw new Error("status " + response.status);
       }
       return response.json();
     }).then(function (body) {
+      if (typeof body.passphrase !== "string") {
+        throw new Error("unexpected response");
+      }
       return body.passphrase;
     });
+  }
+
+  function sessionExpired() {
+    var next = window.location.pathname + window.location.search;
+    window.location.assign("/login?expired=1&next=" + encodeURIComponent(next));
   }
 
   // Buttons that need JavaScript start hidden.
