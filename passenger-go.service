@@ -6,8 +6,12 @@ After=network.target
 ExecStart=/opt/passenger-go/passenger-go
 Restart=always
 User={USER}
-Environment=PORT={PORT}
+EnvironmentFile=/opt/passenger-go/.env
 WorkingDirectory=/opt/passenger-go
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/passenger-go/data
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

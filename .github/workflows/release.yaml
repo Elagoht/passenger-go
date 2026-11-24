@@ -1,4 +1,4 @@
-# go build -o passenger-go cli/main.go
+# go build -trimpath -o passenger-go .
 
 name: Build Go Binaries
 
@@ -54,7 +54,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.26.11"
 
       - name: Build
         env:
@@ -62,8 +62,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p release
-          cp -r frontend/templates release/
-          go build -o release/passenger-go-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.platform == 'windows' && '.exe' || '' }} cli/main.go
+          go build -trimpath -o release/passenger-go-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.platform == 'windows' && '.exe' || '' }} .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

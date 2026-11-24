@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Elagoht/passenger-go/refs/heads/main/frontend/static/img/passenger.png" alt="Passenger-Go Logo" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/Elagoht/passenger-go/refs/heads/main/static/passenger.png" alt="Passenger-Go Logo" width="128" height="128">
 
 # Passenger-Go
 
@@ -22,83 +22,107 @@
 
 </div>
 
-Passenger-Go is a secure, self-hosted passphrase manager that runs in your local network. It provides a modern, responsive web interface for managing your passphrases and sensitive information, with all data encrypted and stored locally on your server.
+Passenger-Go is a self-hosted, single-user passphrase manager. It is one Go binary with the templates and static files embedded, a server-rendered web interface and a SQLite database. There is no separate backend, no JSON API and nothing to copy next to the binary.
 
-Additionally provides an api, so you can use it in your own client projects.
+## Key Features
+
+- Argon2id-derived vault key; every account is encrypted with AES-GCM
+- Master passphrase and one-time recovery key
+- Idle and absolute session expiry with a clear "session expired" experience
+- CSRF protection, strict security headers, brute-force back-off (including setup)
+- SQLite database, a single file to back up
+- Single static binary, no CGO
+- Responsive UI with dark/light mode, real-time search, favicons on account cards
+- Passphrase generator, strength meter and look-alike character alternator
+- Import/export of Firefox and Chromium CSV files
+- `migrate` command for moving a vault from the previous (JWT / `AES_GCM_SECRET`) version
+
+## Security Model
+
+The vault key is derived from your master passphrase with Argon2id and is never stored. A copy of the database plus the server configuration (`.env`) is not enough to decrypt anything: without the master passphrase (or the recovery key) the accounts stay encrypted. The unlocked key lives only in server memory for the duration of a session, so restarting the server signs you out and you unlock the vault again with your passphrase.
+
+Over plain HTTP the session cookie cannot be marked `Secure`. For anything beyond a private network such as Tailscale, run Passenger-Go behind a TLS reverse proxy with `HOST=127.0.0.1` and `TRUSTED_PROXIES` set to the proxy's address.
 
 ## Recommended Way to Run
 
-Passenger-Go is designed to run as a always online server. So you can consider using a VPS or a dedicated server.
+Passenger-Go is designed to run as an always-online server on a VPS or a dedicated machine. [Tailscale](https://tailscale.com) is a good way to reach it from anywhere without exposing it to the internet.
 
-You can use [Tailscale](https://tailscale.com) to connect to your server from anywhere.
-
-### Prerequisites
-
-- [Tailscale](https://tailscale.com)
-
-1. **Install Tailscale:** Assuming you are using a Linux server, and you already installed and configured Tailscale.
-2. **Clone the repository:**
+## Install (Linux, systemd)
 
 ```bash
 git clone https://github.com/Elagoht/passenger-go.git
 cd passenger-go
-```
-
-3. **Run the installation script:**
-
-```bash
 ./install.sh
 ```
 
-> The installation script will ask you for the following information:
->
-> - The port to run the server on (default: 8080)
-> - The JWT secret (a complex string)
-> - The AES-GCM secret (exactly 32 characters)
-> - The salt (recommended: 16 characters)
+The script downloads the latest release binary to `/opt/passenger-go`, installs the systemd unit, asks for the port (default 8080), generates a random `CSRF_KEY` itself and writes `/opt/passenger-go/.env` (mode 600). The database lives in `/opt/passenger-go/data` (mode 700). It needs `sudo`, `curl` and `openssl`.
 
-4. **Serve the application with Tailscale:**
+Then serve it on your Tailscale network:
 
 ```bash
 tailscale serve --port http://localhost:[YOUR_PORT_HERE]
 ```
 
-5. **Use the application!**: Your server is now accessible only in your Tailscale network. Your tailscale domain will be your server's domain.
+### First run: setup code
 
-## Key Features
+On the first start the server logs a one-time setup code. Setting up the vault (choosing the master passphrase) requires it, so nobody else can claim a fresh server before you:
 
-- 🔒 AES-GCM encryption for stored data
-- 🔑 JWT-based authentication
-- 🍃 Environment-based secret management
-- 💾 SQLite database for easy backup and portability
-- 🐿️ Built with Go for performance and reliability
-- 🎨 Modern, responsive UI with dark/light mode support
-- 🔍 Real-time search functionality
-- 🌐 Automatic favicon fetching for account cards
-- 📱 Mobile-friendly design
-- 📦 API for client projects (you can create a mobile app, desktop app, etc.)
+```bash
+journalctl -u passenger-go | grep "setup code"
+```
 
-## UI Features
+Open the site, enter the code, choose your master passphrase and store the recovery key it shows you somewhere safe.
 
-- **Modern Card Layout**: Clean, card-based interface for easy account management
-- **Favicon Support**: Automatic favicon fetching from websites using icon.horse
-- **URL Integration**: Click to open account websites in new tabs
-- **Real-time Search**: Instant search across platform names, usernames, and notes
-- **Passphrase Generator**: Generate strong passphrases with customizable length and complexity
-- **Passphrase Alternator**: Changes the given passphrase's characters to similar looking characters
-- **Responsive Design**: Works perfectly on desktop, tablet, and mobile devices
-- **Copy to Clipboard**: One-click copying of usernames and passphrases
-- **Import/Export**: Support for Firefox and Chromium CSV exports
-- **API Documentation**: Comprehensive API reference with interactive endpoint documentation
+## Upgrading from the previous version
+
+The old version stored everything under one `AES_GCM_SECRET` in `.env`. Running `install.sh` on such a machine (it finds `/opt/passenger-go/database/passenger.db`) does the following and then stops without starting the service:
+
+1. Moves the old `.env` to `/opt/passenger-go/.env.old` (it refuses to run if `.env.old` already exists) and writes a fresh `.env`.
+2. Prints the migration steps, which are:
+
+```bash
+sudo systemctl stop passenger-go
+/opt/passenger-go/passenger-go migrate \
+  --from /opt/passenger-go/database/passenger.db \
+  --env /opt/passenger-go/.env.old \
+  --to /opt/passenger-go/data/passenger.db
+```
+
+3. Your master passphrase stays the same. `migrate` prints a **new recovery key**; the old one no longer works, so store the new one.
+4. After a successful migration delete the old files, since they hold the old secret:
+
+```bash
+rm -f /opt/passenger-go/database/passenger.db /opt/passenger-go/.env.old
+sudo systemctl enable --now passenger-go.service
+```
+
+`migrate` only reads the old files, and refuses to overwrite an existing target database.
 
 ## Environment Variables
 
-Required environment variables:
+Set in `/opt/passenger-go/.env` (see `.env.example`). `JWT_SECRET`, `AES_GCM_SECRET` and `SALT` are no longer used.
 
-- `JWT_SECRET`: Secret for JWT token generation
-- `AES_GCM_SECRET`: Secret for AES-GCM encryption
-- `SALT`: Salt for passphrase hashing
-- `PORT`: Port to run the server on
+| Variable | Default | Description |
+|---|---|---|
+| `CSRF_KEY` | none, required | At least 32 bytes, e.g. `openssl rand -hex 32` |
+| `PORT` | `8080` | Port to listen on |
+| `HOST` | `localhost` | Address to listen on. `install.sh` sets `0.0.0.0` (the old version listened on all interfaces) |
+| `DATABASE_PATH` | `./data/passenger.db` | SQLite file; the directory is created (0700), the file is 0600 |
+| `SESSION_IDLE` | `15m` | Sign out after this much inactivity |
+| `SESSION_MAX` | `12h` | Absolute session lifetime |
+| `TRUSTED_PROXIES` | empty | Comma-separated proxy IPs/CIDRs whose `X-Forwarded-For` is trusted |
+
+## Development
+
+Requires Go 1.26.11 or newer.
+
+```bash
+cp .env.example .env   # set CSRF_KEY
+collage dev            # reads templates and static files from disk
+# or
+go run .               # uses the embedded files
+go test ./... && go vet ./...
+```
 
 ## License
 
